@@ -6,7 +6,7 @@ Standard-first, agent-friendly dotfiles for macOS, Linux desktops, and SSH/no-su
 
 This repo is a fresh AI-era reset with a sincere shoutout to [`wookayin/dotfiles`](https://github.com/wookayin/dotfiles), a beloved long-time inspiration. That style of thoughtful, personal, deeply polished dotfiles is still something I admire.
 
-But the constraints have changed. Many pre-AI-era dotfiles were optimized for one expert human who already knew every alias, every remapped keybinding, every shell hook, and every visual convention by heart. Coding agents usually do not. Command-shadowing aliases, custom keymaps, surprise shell traps, and excessive customization are all harder for agents to infer. They add hidden state, consume extra context/tokens, and can reduce agent performance.
+But the constraints have changed. Many pre-AI-era dotfiles were optimized for one expert human who already knew every alias, every remapped keybinding, every shell hook, and every visual convention by heart. Coding agents such as Claude Code, Codex CLI, and Gemini CLI usually do not. Command-shadowing aliases, custom keymaps, surprise shell traps, and excessive customization are all harder for agents to infer. They add hidden state, consume extra context/tokens, and can reduce agent performance.
 
 So the goal here is simple: keep the baseline predictable, upstream-shaped, and token-efficient for agents; keep the polish explicit and pleasant for humans.
 
@@ -151,6 +151,8 @@ Use isolated temp-`HOME` sandboxes for:
 
 The test suite under `tests/` should exercise a local repo path/URL and verify that no live home directory state is touched. If a test or QA pass cannot prove that it stays inside a temp `HOME`, it is not safe enough.
 
+A stricter QA suite lives in `tests/install_qa.sh` and `tests/test_install_qa.py`. It stress-tests bootstrap, replace-existing backups, package planning, shell startup, and tmux defaults in fully isolated sandboxes.
+
 ## Visual scope
 
 The base config stays standard-first. Optional visual polish is kept in separate modules such as the tmux theme overrides documented in [`docs/visual.md`](docs/visual.md).
@@ -166,5 +168,5 @@ After the first real commit, these are useful sanity checks:
 ```sh
 ~/.dotfiles/bin/dotfiles help
 python3 ~/.dotfiles/scripts/dotfiles.py profiles --repo-root ~/.dotfiles
-python3 -m unittest tests.test_dotfiles_apply tests.test_install_smoke
+python3 -m unittest tests.test_dotfiles_apply tests.test_install_smoke tests.test_install_qa
 ```

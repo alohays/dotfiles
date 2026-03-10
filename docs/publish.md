@@ -12,7 +12,7 @@ Before pushing this repo to GitHub, verify all of the following:
 - `bin/dotfiles help` still exposes `bootstrap`, `install`, `apply`, `update`, and `packages`
 - `python3 scripts/dotfiles.py profiles --repo-root .` still lists `base`, `linux-desktop`, `macos-desktop`, and `ssh-server`
 - `git diff --check` is clean
-- smoke tests in `tests/` pass against a local repo path
+- smoke/QA tests in `tests/` pass against a local repo path
 
 ## Suggested validation flow
 
@@ -31,6 +31,12 @@ Treat the temp `HOME` boundary as a hard requirement. If a validation step canno
 If you are validating replacement behavior, create a fake legacy dotfiles checkout/config inside another temp `HOME` first, then run the installer and confirm that the backup path is created.
 
 If you are testing bootstrap from a local path before the first real publish, use a committed temp git repo (or make an initial commit in your working repo) so the default `main` clone path behaves the same way GitHub will.
+
+For the stricter QA pass, also run:
+
+```sh
+python3 -m unittest -v tests.test_dotfiles_apply tests.test_install_smoke tests.test_install_qa
+```
 
 ## GitHub repository creation
 
