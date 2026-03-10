@@ -38,11 +38,35 @@ make_scenario_root() {
 make_source_repo() {
   root=$1
   snapshot="$root/source-repo"
-  git clone --quiet --no-hardlinks "$REPO_ROOT" "$snapshot" >/dev/null 2>&1
-  git -C "$snapshot" branch -M main >/dev/null 2>&1
+  mkdir -p "$snapshot"
+  for item in bin bootstrap docs manifests modules profiles scripts tests README.md .gitignore; do
+    if [ -e "$REPO_ROOT/$item" ]; then
+      cp -R "$REPO_ROOT/$item" "$snapshot/$item"
+    fi
+  done
+  git -C "$snapshot" init >/dev/null 2>&1
+  git -C "$snapshot" checkout -B main >/dev/null 2>&1
   git -C "$snapshot" config user.name 'QA Test'
   git -C "$snapshot" config user.email 'qa@example.com'
+  git -C "$snapshot" add -A
+  git -C "$snapshot" commit -m 'qa snapshot' >/dev/null 2>&1
   printf '%s\n' "$snapshot"
+}
+
+make_fake_rtk_installer() {
+  root=$1
+  script_path="$root/fake-rtk-install.sh"
+  cat > "$script_path" <<'EOF'
+#!/bin/sh
+set -eu
+mkdir -p "${HOME:?HOME must be set}/.local/bin"
+printf '%s\n' '#!/bin/sh' > "${HOME}/.local/bin/rtk"
+printf '%s\n' 'printf "fake-rtk\n"' >> "${HOME}/.local/bin/rtk"
+chmod +x "${HOME}/.local/bin/rtk"
+printf '%s\n' 'installed' > "${HOME}/.local/bin/.rtk-installed"
+EOF
+  chmod +x "$script_path"
+  printf '%s\n' "$script_path"
 }
 
 assert_exists() {
@@ -145,6 +169,12 @@ assert_tool_plan() {
   }
 }
 
+assert_default_tool_installed() {
+  home_dir=$1
+  assert_exists "$home_dir/.local/bin/rtk"
+  assert_exists "$home_dir/.local/bin/.rtk-installed"
+}
+
 assert_no_shell_wrappers() {
   shell_name=$1
   home_dir=$2
@@ -214,8 +244,9 @@ run_bootstrap_pipe() {
   home_dir=$1
   backup_root=$2
   source_repo=$3
-  shift 3
-  cat "$source_repo/bootstrap/install.sh" | HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" sh -s -- --repo "$source_repo" --target "$home_dir/.dotfiles" --backup-root "$backup_root" --yes --non-interactive "$@"
+  rtk_installer=$4
+  shift 4
+  cat "$source_repo/bootstrap/install.sh" | HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" RTK_INSTALL_URL="file://$rtk_installer" DOTFILES_TOOLS_DEFAULT_METHOD=official sh -s -- --repo "$source_repo" --target "$home_dir/.dotfiles" --backup-root "$backup_root" --yes --non-interactive "$@"
 }
 
 scenario_end_to_end_flows() {
@@ -224,8 +255,9 @@ scenario_end_to_end_flows() {
   backup_root="$root/backups"
   mkdir -p "$home_dir" "$backup_root" "$home_dir/.tmp"
   source_repo=$(make_source_repo "$root")
+  rtk_installer=$(make_fake_rtk_installer "$root")
 
-  run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" install --profile linux-desktop
+  run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" "$rtk_installer" install --profile linux-desktop
 
   assert_exists "$home_dir/.dotfiles/.git"
   assert_symlink_target "$home_dir/.zshrc" "$home_dir/.dotfiles/modules/core/home/.zshrc"
@@ -235,6 +267,7 @@ scenario_end_to_end_flows() {
   assert_inventory_profile "$home_dir/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
   assert_package_plan "$home_dir"
   assert_tool_plan "$home_dir"
+  assert_default_tool_installed "$home_dir"
   assert_no_shell_wrappers bash "$home_dir"
   assert_no_shell_wrappers zsh "$home_dir"
   assert_tmux_prefix_default "$home_dir"
@@ -273,11 +306,12 @@ scenario_replace_dirty_checkout() {
   backup_root="$root/backups"
   mkdir -p "$home_dir" "$backup_root"
   source_repo=$(make_source_repo "$root")
+  rtk_installer=$(make_fake_rtk_installer "$root")
 
   git clone --quiet --no-hardlinks "$source_repo" "$home_dir/.dotfiles" >/dev/null 2>&1
   printf '%s\n' '# dirty checkout marker' >> "$home_dir/.dotfiles/README.md"
 
-  run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" install --profile linux-desktop
+  run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" "$rtk_installer" install --profile linux-desktop
 
   backup_dir=$(find "$backup_root" -mindepth 1 -maxdepth 1 -type d -name 'checkout-*' | head -n 1)
   [ -n "${backup_dir:-}" ] || die "expected checkout backup directory under $backup_root"
@@ -285,6 +319,7 @@ scenario_replace_dirty_checkout() {
   assert_git_clean "$home_dir/.dotfiles"
   assert_symlink_target "$home_dir/.zshrc" "$home_dir/.dotfiles/modules/core/home/.zshrc"
   assert_inventory_profile "$home_dir/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
+  assert_default_tool_installed "$home_dir"
   log 'replace-dirty-checkout scenario passed'
 }
 

@@ -5,6 +5,7 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 HOME_DIR=
 BACKUP_ROOT=
 SOURCE_REPO=
+RTK_INSTALLER=
 
 log() {
   printf '%s\n' "install-smoke: $*"
@@ -19,6 +20,7 @@ cleanup() {
   [ -n "${HOME_DIR:-}" ] && rm -rf "$HOME_DIR"
   [ -n "${BACKUP_ROOT:-}" ] && rm -rf "$BACKUP_ROOT"
   [ -n "${SOURCE_REPO:-}" ] && rm -rf "$SOURCE_REPO"
+  [ -n "${RTK_INSTALLER:-}" ] && rm -f "$RTK_INSTALLER"
 }
 
 assert_exists() {
@@ -78,10 +80,26 @@ make_source_repo() {
   printf '%s\n' "$snapshot"
 }
 
+make_fake_rtk_installer() {
+  script_path=$(make_temp_dir)/install-rtk.sh
+  cat > "$script_path" <<'EOF'
+#!/bin/sh
+set -eu
+mkdir -p "${HOME:?HOME must be set}/.local/bin"
+printf '%s\n' '#!/bin/sh' > "${HOME}/.local/bin/rtk"
+printf '%s\n' 'printf "fake-rtk\n"' >> "${HOME}/.local/bin/rtk"
+chmod +x "${HOME}/.local/bin/rtk"
+printf '%s\n' 'installed' > "${HOME}/.local/bin/.rtk-installed"
+EOF
+  chmod +x "$script_path"
+  printf '%s\n' "$script_path"
+}
+
 setup_case() {
   HOME_DIR=$(make_temp_dir)
   BACKUP_ROOT=$(make_temp_dir)
   SOURCE_REPO=$(make_source_repo)
+  RTK_INSTALLER=$(make_fake_rtk_installer)
   trap cleanup EXIT HUP INT TERM
 }
 
@@ -90,6 +108,8 @@ run_bootstrap_install() {
   SSH_TTY= \
   HOME="$HOME_DIR" \
   XDG_STATE_HOME="$HOME_DIR/.local/state" \
+  RTK_INSTALL_URL="file://$RTK_INSTALLER" \
+  DOTFILES_TOOLS_DEFAULT_METHOD=official \
   "$REPO_ROOT/bootstrap/install.sh" \
     --repo "$SOURCE_REPO" \
     --target "$HOME_DIR/.dotfiles" \
@@ -108,6 +128,8 @@ smoke_fresh() {
   assert_symlink_target "$HOME_DIR/.zshrc" "$HOME_DIR/.dotfiles/modules/core/home/.zshrc"
   assert_symlink_target "$HOME_DIR/.tmux.conf" "$HOME_DIR/.dotfiles/modules/tmux/home/.tmux.conf"
   assert_inventory_profile "$HOME_DIR/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
+  assert_exists "$HOME_DIR/.local/bin/rtk"
+  assert_exists "$HOME_DIR/.local/bin/.rtk-installed"
   log "fresh install smoke passed"
 }
 
@@ -124,6 +146,7 @@ smoke_replace_existing() {
   assert_exists "$HOME_DIR/.dotfiles/.git"
   assert_symlink_target "$HOME_DIR/.zshrc" "$HOME_DIR/.dotfiles/modules/core/home/.zshrc"
   assert_inventory_profile "$HOME_DIR/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
+  assert_exists "$HOME_DIR/.local/bin/rtk"
   log "replace-existing smoke passed"
 }
 

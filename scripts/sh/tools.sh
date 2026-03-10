@@ -11,11 +11,11 @@ dotfiles_tools_usage() {
   cat <<USAGE
 Usage: bin/dotfiles tools <subcommand> [options]
 
-Manage optional external agent-oriented tools without baking them into the
-default shell environment.
+Manage external agent-oriented tools that help coding agents work well in the
+default environment shipped by this repo.
 
 Subcommands:
-  list                       Show supported optional tools
+  list                       Show supported tools
   install <tool>             Install a tool
   plan <tool>                Print how a tool would be installed
 
@@ -48,7 +48,11 @@ dotfiles_detect_tool_method() {
   tool=$1
   case "$tool" in
     rtk)
-      if dotfiles_has_cmd brew; then
+      if [ "${DOTFILES_TOOLS_DEFAULT_METHOD:-auto}" = "official" ]; then
+        printf '%s\n' official
+      elif [ "${DOTFILES_TOOLS_DEFAULT_METHOD:-auto}" = "brew" ]; then
+        printf '%s\n' brew
+      elif dotfiles_has_cmd brew; then
         printf '%s\n' brew
       else
         printf '%s\n' official
@@ -113,6 +117,19 @@ dotfiles_install_tool() {
       dotfiles_die "unsupported install request tool=$tool method=$method"
       ;;
   esac
+}
+
+dotfiles_install_default_tools() {
+  default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk}
+  [ -n "$default_tools" ] || return 0
+
+  for tool in $(printf '%s' "$default_tools" | tr ',' ' '); do
+    [ -n "$tool" ] || continue
+    dotfiles_tool_exists "$tool" || dotfiles_die "unsupported default tool: $tool"
+    method=$(dotfiles_detect_tool_method "$tool")
+    dotfiles_info "Installing default agent tool: $tool ($method)"
+    dotfiles_install_tool "$tool" "$method"
+  done
 }
 
 dotfiles_tools_main() {

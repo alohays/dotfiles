@@ -10,19 +10,20 @@ This repo is a fresh AI-era reset with a sincere shoutout to [`wookayin/dotfiles
 
 But the constraints have changed. Many pre-AI-era dotfiles were optimized for one expert human who already knew every alias, every remapped keybinding, every shell hook, and every visual convention by heart. Coding agents such as Claude Code, Codex CLI, and Gemini CLI usually do not. Command-shadowing aliases, custom keymaps, surprise shell traps, and excessive customization are all harder for agents to infer. They add hidden state, consume extra context/tokens, and can reduce agent performance.
 
-So the goal here is simple: keep the baseline predictable, upstream-shaped, and token-efficient for agents; keep the polish explicit and pleasant for humans; and make agent-helpful tools easy to install when they are actually useful.
+So the goal here is simple: optimize for coding agents first, humans second. That means a predictable, upstream-shaped, token-efficient baseline for agents, plus explicit polish and convenience for humans. It also means this repo should install agent-helpful tools by default when they materially improve how agents work.
 
 ## What this repo optimizes for
 
-### For agents
+### Priority 1: agents
 
 - default CLI behavior instead of surprising aliases
 - stock tmux prefix and keymap
 - standard file locations and a predictable bootstrap/apply flow
 - token-efficient environments with less hidden state and less explanation overhead
+- default installation of agent-helpful tools such as RTK when they materially improve agent performance
 - isolated temp-`HOME` testing so development never mutates live `~/.dotfiles`
 
-### For humans
+### Priority 2: humans
 
 - a comfortable, still-beautiful TUI-first experience
 - optional visual polish instead of mandatory theme stacks
@@ -32,12 +33,12 @@ So the goal here is simple: keep the baseline predictable, upstream-shaped, and 
 
 ## Philosophy
 
-This repo is meant to be boring in the right places:
+This repo is meant to be boring in the right places and opinionated in the useful ones:
 - keep defaults close to upstream behavior
 - avoid command-shadowing aliases and surprise shell traps
 - keep tmux on the stock prefix and keymap
 - make visual polish opt-in instead of forcing themes everywhere
-- keep useful tools easy to install without making them baseline requirements
+- install proven agent-helpful tools by default when they measurably help coding agents work better
 - replace older dotfiles installs cleanly, with one confirmation and backups
 - keep secrets and host-local overrides outside the tracked repo
 
@@ -85,7 +86,7 @@ cd ~/.dotfiles
 ./bootstrap/install.sh
 ```
 
-The bootstrap flow should clone or update the repo, detect the baseline environment, and apply the selected profile into the current `HOME`.
+The bootstrap flow clones or updates the repo, detects the baseline environment, applies the selected profile into the current `HOME`, and installs the default agent-tool set.
 
 ## Update and re-apply
 
@@ -131,19 +132,22 @@ Inspect or plan package installation with:
 ~/.dotfiles/bin/dotfiles packages --all --print-plan
 ```
 
-## Optional agent tools
+## Default agent tools
 
-Tools like [RTK-AI](https://www.rtk-ai.app/) should be installable from this repo when they are useful, but they are **not** part of the default shell semantics or the philosophical baseline. The baseline should stay boring; optional agent helpers should stay explicit and swappable.
+The first default external agent helper is [RTK-AI](https://www.rtk-ai.app/). It is included because the primary goal of this repo is an agent-friendly CLI, and RTK is the kind of tool that can improve how agents operate without forcing weird aliases or non-standard shell semantics.
 
-Right now the repo ships an optional RTK installer:
+That also means the tool layer stays swappable: if a better tool shows up later, this repo should be able to switch defaults without rewriting the whole shell philosophy.
+
+You can inspect or override the tool flow with:
 
 ```sh
 ~/.dotfiles/bin/dotfiles tools list
 ~/.dotfiles/bin/dotfiles tools plan rtk
 ~/.dotfiles/bin/dotfiles tools install rtk
+~/.dotfiles/bin/dotfiles install --skip-tools
 ```
 
-That means you can add RTK when you want it, and later replace it with a different agent helper without turning the core dotfiles into a weird non-standard environment.
+That means RTK can be part of the default agent-first setup today, and later be swapped for a better tool without turning the core dotfiles into a weird non-standard environment.
 
 ## Local overlays and secrets
 

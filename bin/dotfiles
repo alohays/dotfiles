@@ -21,6 +21,7 @@ Global options:
   --yes, -y                  Approve prompts in delegated commands
   --non-interactive          Fail instead of prompting in delegated commands
   --skip-apply               Skip the apply phase for install/update
+  --skip-tools               Skip default agent-tool installation for install/update
   --help, -h                 Show this help
 
 Commands:
@@ -30,7 +31,7 @@ Commands:
   apply                      Invoke scripts/dotfiles.py apply
   update                     git pull --ff-only, then run install unless --skip-apply
   packages                   Install default/opt-in package sets via native package managers
-  tools                      Install optional external agent tools such as RTK
+  tools                      Inspect or install external agent tools such as RTK
 USAGE
 }
 
@@ -38,6 +39,7 @@ DOTFILES_DRY_RUN=${DOTFILES_DRY_RUN:-0}
 DOTFILES_YES=${DOTFILES_YES:-0}
 DOTFILES_NONINTERACTIVE=${DOTFILES_NONINTERACTIVE:-0}
 DOTFILES_SKIP_APPLY=${DOTFILES_SKIP_APPLY:-0}
+DOTFILES_SKIP_TOOLS=${DOTFILES_SKIP_TOOLS:-0}
 DOTFILES_CHECKOUT_ALREADY_UPDATED=${DOTFILES_CHECKOUT_ALREADY_UPDATED:-0}
 
 while [ "$#" -gt 0 ]; do
@@ -63,6 +65,10 @@ while [ "$#" -gt 0 ]; do
       DOTFILES_SKIP_APPLY=1
       shift
       ;;
+    --skip-tools)
+      DOTFILES_SKIP_TOOLS=1
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -85,7 +91,7 @@ if [ "$#" -gt 0 ]; then
   shift
 fi
 
-export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_CHECKOUT_ALREADY_UPDATED DOTFILES_REPO_ROOT=$REPO_ROOT
+export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS DOTFILES_CHECKOUT_ALREADY_UPDATED DOTFILES_REPO_ROOT=$REPO_ROOT
 
 load_packages_support() {
   package_lib="$REPO_ROOT/scripts/sh/packages.sh"
@@ -104,20 +110,26 @@ load_tools_support() {
 run_install() {
   if _dotfiles_is_truthy "$DOTFILES_SKIP_APPLY"; then
     dotfiles_info "Skipping apply step (--skip-apply)"
-    return 0
-  fi
-
-  if dotfiles_invoke_apply_engine "$REPO_ROOT" apply "$@"; then
-    return 0
   else
-    exit_code=$?
+    if dotfiles_invoke_apply_engine "$REPO_ROOT" apply "$@"; then
+      :
+    else
+      exit_code=$?
+    fi
+    if [ "${exit_code:-0}" -eq 2 ]; then
+      dotfiles_warn "apply engine not found at $REPO_ROOT/scripts/dotfiles.py; checkout/bootstrap completed without applying configs"
+    elif [ "${exit_code:-0}" -ne 0 ]; then
+      return "${exit_code:-1}"
+    fi
   fi
-  if [ "$exit_code" -eq 2 ]; then
-    dotfiles_warn "apply engine not found at $REPO_ROOT/scripts/dotfiles.py; checkout/bootstrap completed without applying configs"
+
+  if _dotfiles_is_truthy "$DOTFILES_SKIP_TOOLS"; then
+    dotfiles_info "Skipping default agent tools (--skip-tools)"
     return 0
   fi
 
-  return "$exit_code"
+  load_tools_support
+  dotfiles_install_default_tools
 }
 
 case "$command" in

@@ -4,10 +4,11 @@
 
 Before pushing this repo to GitHub, verify all of the following:
 - bootstrap install/update flow works from an isolated temp `HOME`
+- default agent-tool installation works from an isolated temp `HOME`
 - replacement flow asks once, creates backups, and does not touch live `~/.dotfiles`
 - manifest/profile apply works for the v1 baseline profiles
 - tmux/core/server modules apply cleanly
-- README/docs clearly explain the AI-era goal: standard-first defaults for agents, optional polish for humans, and a temp-`HOME`-only QA story
+- README/docs clearly explain the AI-era goal: agent-first defaults, optional polish for humans, default RTK/tool installation, and a temp-`HOME`-only QA story
 - docs match the current command names and profile names
 - `bin/dotfiles help` still exposes `bootstrap`, `install`, `apply`, `update`, `packages`, and `tools`
 - `python3 scripts/dotfiles.py profiles --repo-root .` still lists `base`, `linux-desktop`, `macos-desktop`, and `ssh-server`

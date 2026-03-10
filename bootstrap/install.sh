@@ -185,6 +185,7 @@ Options:
   --yes, -y                  Approve replacement without prompting
   --non-interactive          Fail instead of prompting
   --skip-apply               Skip the post-checkout apply step
+  --skip-tools               Skip default agent-tool installation
   --help, -h                 Show this help
 
 Commands:
@@ -200,6 +201,7 @@ DOTFILES_DRY_RUN=${DOTFILES_DRY_RUN:-0}
 DOTFILES_YES=${DOTFILES_YES:-0}
 DOTFILES_NONINTERACTIVE=${DOTFILES_NONINTERACTIVE:-0}
 DOTFILES_SKIP_APPLY=${DOTFILES_SKIP_APPLY:-0}
+DOTFILES_SKIP_TOOLS=${DOTFILES_SKIP_TOOLS:-0}
 DOTFILES_REPO_URL=${DOTFILES_REPO_URL:-https://github.com/alohays/dotfiles.git}
 DOTFILES_TARGET=${DOTFILES_TARGET:-${HOME:?HOME must be set}/.dotfiles}
 DOTFILES_BRANCH=${DOTFILES_BRANCH:-main}
@@ -244,6 +246,10 @@ while [ "$#" -gt 0 ]; do
       DOTFILES_SKIP_APPLY=1
       shift
       ;;
+    --skip-tools)
+      DOTFILES_SKIP_TOOLS=1
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -263,7 +269,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY
+export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS
 require_cmd git
 
 needs_clone=1
@@ -319,5 +325,6 @@ DOTFILES_TARGET="$DOTFILES_TARGET" \
 DOTFILES_REPO_ROOT="$DOTFILES_TARGET" \
 DOTFILES_SOURCE="$DOTFILES_REPO_URL" \
 DOTFILES_BRANCH="$DOTFILES_BRANCH" \
+DOTFILES_SKIP_TOOLS="$DOTFILES_SKIP_TOOLS" \
 DOTFILES_CHECKOUT_ALREADY_UPDATED="$DOTFILES_CHECKOUT_ALREADY_UPDATED" \
 exec "$repo_cmd" "$command" "$@"
