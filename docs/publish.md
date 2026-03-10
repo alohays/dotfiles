@@ -70,7 +70,7 @@ https://raw.githubusercontent.com/alohays/dotfiles/main/bootstrap/install.sh
 Example invocation:
 
 ```sh
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/alohays/dotfiles/main/bootstrap/install.sh)"
+curl -fsSL https://raw.githubusercontent.com/alohays/dotfiles/main/bootstrap/install.sh | sh -s --
 ```
 
 ## Release hygiene

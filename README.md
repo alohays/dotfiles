@@ -45,7 +45,7 @@ tests/
 ### Remote bootstrap
 
 ```sh
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/alohays/dotfiles/main/bootstrap/install.sh)"
+curl -fsSL https://raw.githubusercontent.com/alohays/dotfiles/main/bootstrap/install.sh | sh -s --
 ```
 
 ### Local checkout
