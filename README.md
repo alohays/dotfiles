@@ -1,5 +1,7 @@
 # alohays/dotfiles
 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/73bc2ddc-ae63-4cd5-b210-bcd29fb5dcd8" />
+
 Standard-first, agent-friendly dotfiles for macOS, Linux desktops, and SSH/no-sudo servers — designed for coding agents that want boring defaults and humans who still want a beautiful terminal.
 
 ## Why this repo exists
