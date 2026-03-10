@@ -3,10 +3,11 @@
 ## Pre-publish checklist
 
 Before pushing this repo to GitHub, verify all of the following:
-- bootstrap install/update flow works from a temp `HOME`
+- bootstrap install/update flow works from an isolated temp `HOME`
 - replacement flow asks once, creates backups, and does not touch live `~/.dotfiles`
 - manifest/profile apply works for the v1 baseline profiles
 - tmux/core/server modules apply cleanly
+- README/docs clearly explain the AI-era goal: standard-first defaults for agents, optional polish for humans, and a temp-`HOME`-only QA story
 - docs match the current command names and profile names
 - `bin/dotfiles help` still exposes `bootstrap`, `install`, `apply`, `update`, and `packages`
 - `python3 scripts/dotfiles.py profiles --repo-root .` still lists `base`, `linux-desktop`, `macos-desktop`, and `ssh-server`
@@ -24,6 +25,8 @@ HOME="$TMP_HOME" ~/.dotfiles/bin/dotfiles apply
 HOME="$TMP_HOME" ~/.dotfiles/bin/dotfiles packages --all --print-plan
 rm -rf "$TMP_HOME"
 ```
+
+Treat the temp `HOME` boundary as a hard requirement. If a validation step cannot prove it stayed away from live `~/.dotfiles`, it is not safe enough.
 
 If you are validating replacement behavior, create a fake legacy dotfiles checkout/config inside another temp `HOME` first, then run the installer and confirm that the backup path is created.
 

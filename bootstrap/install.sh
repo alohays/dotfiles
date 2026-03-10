@@ -310,9 +310,14 @@ if is_truthy "$DOTFILES_DRY_RUN"; then
 fi
 
 [ -x "$repo_cmd" ] || die "expected executable command at $repo_cmd"
+DOTFILES_CHECKOUT_ALREADY_UPDATED=0
+if [ "$command" = "update" ]; then
+  DOTFILES_CHECKOUT_ALREADY_UPDATED=1
+fi
 log "Dispatching to $repo_cmd $command"
 DOTFILES_TARGET="$DOTFILES_TARGET" \
 DOTFILES_REPO_ROOT="$DOTFILES_TARGET" \
 DOTFILES_SOURCE="$DOTFILES_REPO_URL" \
 DOTFILES_BRANCH="$DOTFILES_BRANCH" \
+DOTFILES_CHECKOUT_ALREADY_UPDATED="$DOTFILES_CHECKOUT_ALREADY_UPDATED" \
 exec "$repo_cmd" "$command" "$@"

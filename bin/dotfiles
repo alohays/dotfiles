@@ -37,6 +37,7 @@ DOTFILES_DRY_RUN=${DOTFILES_DRY_RUN:-0}
 DOTFILES_YES=${DOTFILES_YES:-0}
 DOTFILES_NONINTERACTIVE=${DOTFILES_NONINTERACTIVE:-0}
 DOTFILES_SKIP_APPLY=${DOTFILES_SKIP_APPLY:-0}
+DOTFILES_CHECKOUT_ALREADY_UPDATED=${DOTFILES_CHECKOUT_ALREADY_UPDATED:-0}
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -83,7 +84,7 @@ if [ "$#" -gt 0 ]; then
   shift
 fi
 
-export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_REPO_ROOT=$REPO_ROOT
+export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_CHECKOUT_ALREADY_UPDATED DOTFILES_REPO_ROOT=$REPO_ROOT
 
 load_packages_support() {
   package_lib="$REPO_ROOT/scripts/sh/packages.sh"
@@ -101,14 +102,14 @@ run_install() {
   if dotfiles_invoke_apply_engine "$REPO_ROOT" apply "$@"; then
     return 0
   else
-    status=$?
+    exit_code=$?
   fi
-  if [ "$status" -eq 2 ]; then
+  if [ "$exit_code" -eq 2 ]; then
     dotfiles_warn "apply engine not found at $REPO_ROOT/scripts/dotfiles.py; checkout/bootstrap completed without applying configs"
     return 0
   fi
 
-  return "$status"
+  return "$exit_code"
 }
 
 case "$command" in
@@ -125,16 +126,20 @@ case "$command" in
     if dotfiles_invoke_apply_engine "$REPO_ROOT" apply "$@"; then
       exit 0
     else
-      status=$?
+      exit_code=$?
     fi
-    if [ "$status" -eq 2 ]; then
+    if [ "$exit_code" -eq 2 ]; then
       dotfiles_die "apply engine not found at $REPO_ROOT/scripts/dotfiles.py"
     fi
-    exit "$status"
+    exit "$exit_code"
     ;;
   update)
     dotfiles_has_cmd git || dotfiles_die "git is required for update"
-    dotfiles_run git -C "$REPO_ROOT" pull --ff-only
+    if _dotfiles_is_truthy "$DOTFILES_CHECKOUT_ALREADY_UPDATED"; then
+      dotfiles_info "Skipping git pull; checkout already refreshed by bootstrap"
+    else
+      dotfiles_run git -C "$REPO_ROOT" pull --ff-only
+    fi
     run_install "$@"
     ;;
   packages)

@@ -1,6 +1,32 @@
 # alohays/dotfiles
 
-Standard-first, agent-friendly dotfiles for macOS, Linux desktops, and SSH/no-sudo servers.
+Standard-first, agent-friendly dotfiles for macOS, Linux desktops, and SSH/no-sudo servers — designed for coding agents that want boring defaults and humans who still want a beautiful terminal.
+
+## Why this repo exists
+
+This repo is a fresh AI-era reset with a sincere shoutout to [`wookayin/dotfiles`](https://github.com/wookayin/dotfiles), a beloved long-time inspiration. That style of thoughtful, personal, deeply polished dotfiles is still something I admire.
+
+But the constraints have changed. Many pre-AI-era dotfiles were optimized for one expert human who already knew every alias, every remapped keybinding, every shell hook, and every visual convention by heart. Coding agents usually do not. Command-shadowing aliases, custom keymaps, surprise shell traps, and excessive customization are all harder for agents to infer. They add hidden state, consume extra context/tokens, and can reduce agent performance.
+
+So the goal here is simple: keep the baseline predictable, upstream-shaped, and token-efficient for agents; keep the polish explicit and pleasant for humans.
+
+## What this repo optimizes for
+
+### For agents
+
+- default CLI behavior instead of surprising aliases
+- stock tmux prefix and keymap
+- standard file locations and a predictable bootstrap/apply flow
+- token-efficient environments with less hidden state and less explanation overhead, in the same spirit as tools like [RTK-AI](https://www.rtk-ai.app/)
+- isolated temp-`HOME` testing so development never mutates live `~/.dotfiles`
+
+### For humans
+
+- a comfortable, still-beautiful TUI-first experience
+- optional visual polish instead of mandatory theme stacks
+- one-command bootstrap plus easy re-apply/update flows
+- one-command useful-tool installation through explicit package tiers
+- local overrides and secrets kept out of the tracked repo
 
 ## Philosophy
 
@@ -9,6 +35,7 @@ This repo is meant to be boring in the right places:
 - avoid command-shadowing aliases and surprise shell traps
 - keep tmux on the stock prefix and keymap
 - make visual polish opt-in instead of forcing themes everywhere
+- keep useful tools easy to install without making them baseline requirements
 - replace older dotfiles installs cleanly, with one confirmation and backups
 - keep secrets and host-local overrides outside the tracked repo
 
@@ -122,7 +149,7 @@ Use isolated temp-`HOME` sandboxes for:
 - profile application tests
 - package bootstrap checks
 
-The test suite under `tests/` should exercise a local repo path/URL and verify that no live home directory state is touched.
+The test suite under `tests/` should exercise a local repo path/URL and verify that no live home directory state is touched. If a test or QA pass cannot prove that it stays inside a temp `HOME`, it is not safe enough.
 
 ## Visual scope
 
