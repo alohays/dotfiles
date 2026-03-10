@@ -9,7 +9,7 @@ Before pushing this repo to GitHub, verify all of the following:
 - tmux/core/server modules apply cleanly
 - README/docs clearly explain the AI-era goal: standard-first defaults for agents, optional polish for humans, and a temp-`HOME`-only QA story
 - docs match the current command names and profile names
-- `bin/dotfiles help` still exposes `bootstrap`, `install`, `apply`, `update`, and `packages`
+- `bin/dotfiles help` still exposes `bootstrap`, `install`, `apply`, `update`, `packages`, and `tools`
 - `python3 scripts/dotfiles.py profiles --repo-root .` still lists `base`, `linux-desktop`, `macos-desktop`, and `ssh-server`
 - `git diff --check` is clean
 - smoke/QA tests in `tests/` pass against a local repo path
@@ -23,6 +23,7 @@ TMP_HOME="$(mktemp -d)"
 HOME="$TMP_HOME" ./bootstrap/install.sh
 HOME="$TMP_HOME" ~/.dotfiles/bin/dotfiles apply
 HOME="$TMP_HOME" ~/.dotfiles/bin/dotfiles packages --all --print-plan
+HOME="$TMP_HOME" ~/.dotfiles/bin/dotfiles tools plan rtk
 rm -rf "$TMP_HOME"
 ```
 

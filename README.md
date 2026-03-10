@@ -10,7 +10,7 @@ This repo is a fresh AI-era reset with a sincere shoutout to [`wookayin/dotfiles
 
 But the constraints have changed. Many pre-AI-era dotfiles were optimized for one expert human who already knew every alias, every remapped keybinding, every shell hook, and every visual convention by heart. Coding agents such as Claude Code, Codex CLI, and Gemini CLI usually do not. Command-shadowing aliases, custom keymaps, surprise shell traps, and excessive customization are all harder for agents to infer. They add hidden state, consume extra context/tokens, and can reduce agent performance.
 
-So the goal here is simple: keep the baseline predictable, upstream-shaped, and token-efficient for agents; keep the polish explicit and pleasant for humans.
+So the goal here is simple: keep the baseline predictable, upstream-shaped, and token-efficient for agents; keep the polish explicit and pleasant for humans; and make agent-helpful tools easy to install when they are actually useful.
 
 ## What this repo optimizes for
 
@@ -19,7 +19,7 @@ So the goal here is simple: keep the baseline predictable, upstream-shaped, and 
 - default CLI behavior instead of surprising aliases
 - stock tmux prefix and keymap
 - standard file locations and a predictable bootstrap/apply flow
-- token-efficient environments with less hidden state and less explanation overhead, in the same spirit as tools like [RTK-AI](https://www.rtk-ai.app/)
+- token-efficient environments with less hidden state and less explanation overhead
 - isolated temp-`HOME` testing so development never mutates live `~/.dotfiles`
 
 ### For humans
@@ -131,6 +131,20 @@ Inspect or plan package installation with:
 ~/.dotfiles/bin/dotfiles packages --all --print-plan
 ```
 
+## Optional agent tools
+
+Tools like [RTK-AI](https://www.rtk-ai.app/) should be installable from this repo when they are useful, but they are **not** part of the default shell semantics or the philosophical baseline. The baseline should stay boring; optional agent helpers should stay explicit and swappable.
+
+Right now the repo ships an optional RTK installer:
+
+```sh
+~/.dotfiles/bin/dotfiles tools list
+~/.dotfiles/bin/dotfiles tools plan rtk
+~/.dotfiles/bin/dotfiles tools install rtk
+```
+
+That means you can add RTK when you want it, and later replace it with a different agent helper without turning the core dotfiles into a weird non-standard environment.
+
 ## Local overlays and secrets
 
 Keep host-specific data outside the repo. Examples include:
@@ -171,4 +185,5 @@ After the first real commit, these are useful sanity checks:
 ~/.dotfiles/bin/dotfiles help
 python3 ~/.dotfiles/scripts/dotfiles.py profiles --repo-root ~/.dotfiles
 python3 -m unittest tests.test_dotfiles_apply tests.test_install_smoke tests.test_install_qa
+~/.dotfiles/bin/dotfiles tools plan rtk
 ```

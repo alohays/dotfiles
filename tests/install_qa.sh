@@ -137,6 +137,14 @@ assert_package_plan() {
   esac
 }
 
+assert_tool_plan() {
+  home_dir=$1
+  plan_output=$(HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" "$home_dir/.dotfiles/bin/dotfiles" tools plan rtk)
+  printf '%s\n' "$plan_output" | grep -Eq '^(brew install rtk|curl -fsSL .+/install\.sh \| sh)$' || {
+    die "unexpected RTK tool plan output: $plan_output"
+  }
+}
+
 assert_no_shell_wrappers() {
   shell_name=$1
   home_dir=$2
@@ -226,6 +234,7 @@ scenario_end_to_end_flows() {
   assert_symlink_target "$home_dir/.tmux.conf" "$home_dir/.dotfiles/modules/tmux/home/.tmux.conf"
   assert_inventory_profile "$home_dir/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
   assert_package_plan "$home_dir"
+  assert_tool_plan "$home_dir"
   assert_no_shell_wrappers bash "$home_dir"
   assert_no_shell_wrappers zsh "$home_dir"
   assert_tmux_prefix_default "$home_dir"

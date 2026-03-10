@@ -30,6 +30,7 @@ Commands:
   apply                      Invoke scripts/dotfiles.py apply
   update                     git pull --ff-only, then run install unless --skip-apply
   packages                   Install default/opt-in package sets via native package managers
+  tools                      Install optional external agent tools such as RTK
 USAGE
 }
 
@@ -93,6 +94,13 @@ load_packages_support() {
   . "$package_lib"
 }
 
+load_tools_support() {
+  tools_lib="$REPO_ROOT/scripts/sh/tools.sh"
+  [ -f "$tools_lib" ] || dotfiles_die "tool support not found at $tools_lib"
+  # shellcheck source=/dev/null
+  . "$tools_lib"
+}
+
 run_install() {
   if _dotfiles_is_truthy "$DOTFILES_SKIP_APPLY"; then
     dotfiles_info "Skipping apply step (--skip-apply)"
@@ -145,6 +153,10 @@ case "$command" in
   packages)
     load_packages_support
     dotfiles_packages_main "$@"
+    ;;
+  tools)
+    load_tools_support
+    dotfiles_tools_main "$@"
     ;;
   *)
     dotfiles_die "unknown command: $command"
