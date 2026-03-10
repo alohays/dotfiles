@@ -1,0 +1,147 @@
+#!/bin/sh
+set -eu
+
+SCRIPT_PATH=$0
+REPO_ROOT=${DOTFILES_REPO_ROOT:-}
+if [ -z "$REPO_ROOT" ]; then
+  SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
+  REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
+fi
+
+# shellcheck source=/dev/null
+. "$REPO_ROOT/scripts/sh/lib.sh"
+
+usage() {
+  cat <<USAGE
+Usage: bin/dotfiles [global-options] <command> [command-args]
+
+Global options:
+  --repo-root <path>         Override repo root detection
+  --dry-run                  Print actions without changing anything
+  --yes, -y                  Approve prompts in delegated commands
+  --non-interactive          Fail instead of prompting in delegated commands
+  --skip-apply               Skip the apply phase for install/update
+  --help, -h                 Show this help
+
+Commands:
+  help                       Show this help
+  bootstrap                  Run bootstrap/install.sh using this repo as the source
+  install                    Apply configs from this checkout if the apply engine exists
+  apply                      Invoke scripts/dotfiles.py apply
+  update                     git pull --ff-only, then run install unless --skip-apply
+  packages                   Install default/opt-in package sets via native package managers
+USAGE
+}
+
+DOTFILES_DRY_RUN=${DOTFILES_DRY_RUN:-0}
+DOTFILES_YES=${DOTFILES_YES:-0}
+DOTFILES_NONINTERACTIVE=${DOTFILES_NONINTERACTIVE:-0}
+DOTFILES_SKIP_APPLY=${DOTFILES_SKIP_APPLY:-0}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --repo-root)
+      [ "$#" -ge 2 ] || dotfiles_die "--repo-root requires a value"
+      REPO_ROOT=$2
+      shift 2
+      ;;
+    --dry-run)
+      DOTFILES_DRY_RUN=1
+      shift
+      ;;
+    --yes|-y)
+      DOTFILES_YES=1
+      shift
+      ;;
+    --non-interactive)
+      DOTFILES_NONINTERACTIVE=1
+      shift
+      ;;
+    --skip-apply)
+      DOTFILES_SKIP_APPLY=1
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      dotfiles_die "unknown option: $1"
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+command=${1:-help}
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+
+export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_REPO_ROOT=$REPO_ROOT
+
+load_packages_support() {
+  package_lib="$REPO_ROOT/scripts/sh/packages.sh"
+  [ -f "$package_lib" ] || dotfiles_die "package support not found at $package_lib"
+  # shellcheck source=/dev/null
+  . "$package_lib"
+}
+
+run_install() {
+  if _dotfiles_is_truthy "$DOTFILES_SKIP_APPLY"; then
+    dotfiles_info "Skipping apply step (--skip-apply)"
+    return 0
+  fi
+
+  if dotfiles_invoke_apply_engine "$REPO_ROOT" apply "$@"; then
+    return 0
+  else
+    status=$?
+  fi
+  if [ "$status" -eq 2 ]; then
+    dotfiles_warn "apply engine not found at $REPO_ROOT/scripts/dotfiles.py; checkout/bootstrap completed without applying configs"
+    return 0
+  fi
+
+  return "$status"
+}
+
+case "$command" in
+  help)
+    usage
+    ;;
+  bootstrap)
+    exec "$REPO_ROOT/bootstrap/install.sh" --repo "$REPO_ROOT" "$@"
+    ;;
+  install)
+    run_install "$@"
+    ;;
+  apply)
+    if dotfiles_invoke_apply_engine "$REPO_ROOT" apply "$@"; then
+      exit 0
+    else
+      status=$?
+    fi
+    if [ "$status" -eq 2 ]; then
+      dotfiles_die "apply engine not found at $REPO_ROOT/scripts/dotfiles.py"
+    fi
+    exit "$status"
+    ;;
+  update)
+    dotfiles_has_cmd git || dotfiles_die "git is required for update"
+    dotfiles_run git -C "$REPO_ROOT" pull --ff-only
+    run_install "$@"
+    ;;
+  packages)
+    load_packages_support
+    dotfiles_packages_main "$@"
+    ;;
+  *)
+    dotfiles_die "unknown command: $command"
+    ;;
+esac

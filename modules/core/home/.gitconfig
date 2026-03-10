@@ -1,0 +1,11 @@
+# Standard-first global Git defaults.
+[color]
+    ui = auto
+[core]
+    excludesfile = ~/.config/git/ignore
+[fetch]
+    prune = true
+[init]
+    defaultBranch = main
+[include]
+    path = ~/.config/git/config.local

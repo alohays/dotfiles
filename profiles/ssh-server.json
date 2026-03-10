@@ -1,0 +1,11 @@
+{
+  "name": "ssh-server",
+  "description": "SSH-first / no-sudo server baseline without desktop visual extras.",
+  "extends": [
+    "base"
+  ],
+  "modules": [
+    "ssh-server",
+    "tmux"
+  ]
+}

@@ -1,0 +1,6 @@
+# Global ignore patterns.
+.DS_Store
+.direnv/
+*.swp
+*.swo
+*~

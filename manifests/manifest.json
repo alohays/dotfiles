@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "state": {
+    "directory": ".local/state/alohays-dotfiles",
+    "inventory_file": "managed-targets.json",
+    "backups_dir": "backups"
+  },
+  "default_profiles": {
+    "darwin": "macos-desktop",
+    "linux": "linux-desktop",
+    "ssh": "ssh-server"
+  },
+  "modules": [
+    {
+      "name": "core",
+      "description": "Standard-first shell, git, and shared dotfiles",
+      "source_root": "modules/core"
+    },
+    {
+      "name": "ssh-server",
+      "description": "SSH/no-sudo shell adjustments",
+      "source_root": "modules/ssh-server"
+    },
+    {
+      "name": "tmux",
+      "description": "Stock-keymap tmux configuration",
+      "source_root": "modules/tmux"
+    },
+    {
+      "name": "visual",
+      "description": "Optional desktop-only visual polish",
+      "source_root": "modules/visual"
+    }
+  ]
+}

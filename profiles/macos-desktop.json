@@ -1,0 +1,11 @@
+{
+  "name": "macos-desktop",
+  "description": "macOS desktop baseline with tmux and optional visual module support.",
+  "extends": [
+    "base"
+  ],
+  "modules": [
+    "tmux",
+    "visual"
+  ]
+}

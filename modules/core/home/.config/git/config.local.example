@@ -1,0 +1,6 @@
+# Copy to ~/.config/git/config.local and keep it untracked.
+[user]
+    name = Example Name
+    email = name@example.com
+
+# Optional signing preferences or host-specific includes can live here.

@@ -1,0 +1,8 @@
+{
+  "name": "base",
+  "description": "Baseline profile shared by every host.",
+  "extends": [],
+  "modules": [
+    "core"
+  ]
+}
