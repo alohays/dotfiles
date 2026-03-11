@@ -1,11 +1,12 @@
 {
   "name": "linux-desktop",
-  "description": "Ubuntu/Debian-like desktop baseline with tmux and low-risk visual extras.",
+  "description": "Ubuntu/Debian-like desktop baseline with tmux, Neovim, and tmux-theme visual extras.",
   "extends": [
     "base"
   ],
   "modules": [
     "tmux",
+    "nvim",
     "visual"
   ]
 }

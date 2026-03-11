@@ -1,0 +1,11 @@
+{
+  "name": "macos-desktop-rich",
+  "description": "macOS desktop profile with optional terminal and prompt polish on top of the standard-first visual stack.",
+  "extends": [
+    "macos-desktop"
+  ],
+  "modules": [
+    "terminal",
+    "prompt"
+  ]
+}

@@ -8,6 +8,7 @@ DOTFILES_PACKAGES_SH_LOADED=1
 _dotfiles_package_manifest() {
   cat <<'MANIFEST'
 default|brew|git
+default|brew|neovim
 default|brew|zsh
 default|brew|tmux
 agents|brew|ripgrep
@@ -16,6 +17,7 @@ agents|brew|jq
 agents|brew|fzf
 agents|brew|git-delta
 default|apt|git
+default|apt|neovim
 default|apt|zsh
 default|apt|tmux
 agents|apt|ripgrep

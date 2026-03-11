@@ -27,9 +27,24 @@
       "source_root": "modules/tmux"
     },
     {
+      "name": "nvim",
+      "description": "Optional Neovim UI-focused desktop configuration",
+      "source_root": "modules/nvim"
+    },
+    {
       "name": "visual",
       "description": "Optional desktop-only visual polish",
       "source_root": "modules/visual"
+    },
+    {
+      "name": "terminal",
+      "description": "Optional terminal emulator presets and font guidance",
+      "source_root": "modules/terminal"
+    },
+    {
+      "name": "prompt",
+      "description": "Optional shell prompt polish with host-color integration",
+      "source_root": "modules/prompt"
     }
   ]
 }

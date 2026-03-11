@@ -65,7 +65,10 @@ manifests/manifest.json
 profiles/*.json
 modules/core/
 modules/tmux/
+modules/nvim/
 modules/visual/
+modules/terminal/
+modules/prompt/
 modules/ssh-server/
 tests/
 ```
@@ -175,7 +178,13 @@ A stricter QA suite lives in `tests/install_qa.sh` and `tests/test_install_qa.py
 
 ## Visual scope
 
-The base config stays standard-first. Optional visual polish is kept in separate modules such as the tmux theme overrides documented in [`docs/visual.md`](docs/visual.md).
+The base config stays standard-first, but the desktop layer is now richer:
+- `tmux`: safe terminal capability defaults + stock-keymap tmux baseline
+- `nvim`: a bounded Neovim UI layer for desktop profiles
+- `visual`: tmux theme and monitored status presentation
+- `terminal` + `prompt`: richer opt-in polish through the `*-desktop-rich` profiles
+
+See [`docs/visual.md`](docs/visual.md) for the layering model and activation guidance.
 
 ## Publishing
 
@@ -188,6 +197,6 @@ After the first real commit, these are useful sanity checks:
 ```sh
 ~/.dotfiles/bin/dotfiles help
 python3 ~/.dotfiles/scripts/dotfiles.py profiles --repo-root ~/.dotfiles
-python3 -m unittest tests.test_dotfiles_apply tests.test_install_smoke tests.test_install_qa
+python3 -m unittest tests.test_dotfiles_apply tests.test_visual_modules tests.test_install_smoke tests.test_install_qa
 ~/.dotfiles/bin/dotfiles tools plan rtk
 ```

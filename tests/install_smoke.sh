@@ -104,11 +104,13 @@ setup_case() {
 }
 
 run_bootstrap_install() {
+  profile=${1:-linux-desktop}
   SSH_CONNECTION= \
   SSH_TTY= \
   HOME="$HOME_DIR" \
   XDG_STATE_HOME="$HOME_DIR/.local/state" \
   RTK_INSTALL_URL="file://$RTK_INSTALLER" \
+  DOTFILES_DEFAULT_AGENT_TOOLS=rtk \
   DOTFILES_TOOLS_DEFAULT_METHOD=official \
   "$REPO_ROOT/bootstrap/install.sh" \
     --repo "$SOURCE_REPO" \
@@ -117,16 +119,18 @@ run_bootstrap_install() {
     --yes \
     --non-interactive \
     install \
-    --profile linux-desktop
+    --profile "$profile"
 }
 
 smoke_fresh() {
   setup_case
-  run_bootstrap_install
+  run_bootstrap_install linux-desktop
 
   assert_exists "$HOME_DIR/.dotfiles/.git"
   assert_symlink_target "$HOME_DIR/.zshrc" "$HOME_DIR/.dotfiles/modules/core/home/.zshrc"
   assert_symlink_target "$HOME_DIR/.tmux.conf" "$HOME_DIR/.dotfiles/modules/tmux/home/.tmux.conf"
+  assert_symlink_target "$HOME_DIR/.config/nvim/init.lua" "$HOME_DIR/.dotfiles/modules/nvim/home/.config/nvim/init.lua"
+  assert_symlink_target "$HOME_DIR/.config/tmux/theme.conf" "$HOME_DIR/.dotfiles/modules/visual/home/.config/tmux/theme.conf"
   assert_inventory_profile "$HOME_DIR/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
   assert_exists "$HOME_DIR/.local/bin/rtk"
   assert_exists "$HOME_DIR/.local/bin/.rtk-installed"
@@ -138,16 +142,33 @@ smoke_replace_existing() {
   mkdir -p "$HOME_DIR/.dotfiles"
   printf '%s\n' legacy > "$HOME_DIR/.dotfiles/legacy.txt"
 
-  run_bootstrap_install
+  run_bootstrap_install linux-desktop
 
   backup_dir=$(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'checkout-*' | head -n 1)
   [ -n "${backup_dir:-}" ] || die "expected checkout backup directory under $BACKUP_ROOT"
   assert_exists "$backup_dir/legacy.txt"
   assert_exists "$HOME_DIR/.dotfiles/.git"
   assert_symlink_target "$HOME_DIR/.zshrc" "$HOME_DIR/.dotfiles/modules/core/home/.zshrc"
+  assert_symlink_target "$HOME_DIR/.tmux.conf" "$HOME_DIR/.dotfiles/modules/tmux/home/.tmux.conf"
+  assert_symlink_target "$HOME_DIR/.config/nvim/init.lua" "$HOME_DIR/.dotfiles/modules/nvim/home/.config/nvim/init.lua"
+  assert_symlink_target "$HOME_DIR/.config/tmux/theme.conf" "$HOME_DIR/.dotfiles/modules/visual/home/.config/tmux/theme.conf"
   assert_inventory_profile "$HOME_DIR/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
   assert_exists "$HOME_DIR/.local/bin/rtk"
   log "replace-existing smoke passed"
+}
+
+smoke_rich_profile() {
+  setup_case
+  run_bootstrap_install linux-desktop-rich
+
+  assert_exists "$HOME_DIR/.dotfiles/.git"
+  assert_symlink_target "$HOME_DIR/.config/nvim/init.lua" "$HOME_DIR/.dotfiles/modules/nvim/home/.config/nvim/init.lua"
+  assert_symlink_target "$HOME_DIR/.config/tmux/theme.conf" "$HOME_DIR/.dotfiles/modules/visual/home/.config/tmux/theme.conf"
+  assert_symlink_target "$HOME_DIR/.config/wezterm/wezterm.lua" "$HOME_DIR/.dotfiles/modules/terminal/home/.config/wezterm/wezterm.lua"
+  assert_symlink_target "$HOME_DIR/.config/alacritty/alacritty.toml" "$HOME_DIR/.dotfiles/modules/terminal/home/.config/alacritty/alacritty.toml"
+  assert_symlink_target "$HOME_DIR/.config/dotfiles/interactive.d/80-prompt.sh" "$HOME_DIR/.dotfiles/modules/prompt/home/.config/dotfiles/interactive.d/80-prompt.sh"
+  assert_inventory_profile "$HOME_DIR/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop-rich
+  log "rich profile smoke passed"
 }
 
 case "${1:-all}" in
@@ -157,9 +178,13 @@ case "${1:-all}" in
   replace-existing)
     smoke_replace_existing
     ;;
+  rich)
+    smoke_rich_profile
+    ;;
   all)
     smoke_fresh
     smoke_replace_existing
+    smoke_rich_profile
     ;;
   *)
     die "unknown scenario: $1"
