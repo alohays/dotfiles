@@ -35,6 +35,51 @@ dotfiles_prepend_path() {
     esac
 }
 
+dotfiles_prepend_prefix_bins() {
+    prefixes=${1:-}
+    [ -n "$prefixes" ] || return 0
+
+    reversed_prefixes=
+    while [ -n "$prefixes" ]; do
+        case $prefixes in
+            *:*)
+                prefix=${prefixes%%:*}
+                prefixes=${prefixes#*:}
+                ;;
+            *)
+                prefix=$prefixes
+                prefixes=
+                ;;
+        esac
+        [ -n "$prefix" ] || continue
+        reversed_prefixes=$prefix${reversed_prefixes:+":$reversed_prefixes"}
+    done
+
+    while [ -n "$reversed_prefixes" ]; do
+        case $reversed_prefixes in
+            *:*)
+                prefix=${reversed_prefixes%%:*}
+                reversed_prefixes=${reversed_prefixes#*:}
+                ;;
+            *)
+                prefix=$reversed_prefixes
+                reversed_prefixes=
+                ;;
+        esac
+        [ -n "$prefix" ] || continue
+        dotfiles_prepend_path "$prefix/sbin"
+        dotfiles_prepend_path "$prefix/bin"
+    done
+}
+
+dotfiles_os_name() {
+    if [ -n "${DOTFILES_OS_NAME:-}" ]; then
+        printf '%s\n' "$DOTFILES_OS_NAME"
+    else
+        uname -s 2>/dev/null || printf '%s\n' unknown
+    fi
+}
+
 dotfiles_ensure_dir() {
     dir=${1:-}
     [ -n "$dir" ] || return 0

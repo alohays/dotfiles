@@ -69,6 +69,46 @@ EOF
   printf '%s\n' "$script_path"
 }
 
+make_fake_command() {
+  command_path=$1
+  command_name=$2
+  mkdir -p "$(dirname "$command_path")"
+  cat > "$command_path" <<EOF
+#!/bin/sh
+printf '%s\n' '$command_name'
+EOF
+  chmod +x "$command_path"
+}
+
+setup_command_resolution_fixture() {
+  root=$1
+  home_dir=$2
+  fake_brew_primary="$root/fake-homebrew-primary"
+  fake_brew_secondary="$root/fake-homebrew-secondary"
+
+  make_fake_command "$fake_brew_primary/bin/brew" brew-primary
+  make_fake_command "$fake_brew_primary/bin/qa-brew-tool" qa-brew-tool-primary
+  make_fake_command "$fake_brew_secondary/bin/brew" brew-secondary
+  make_fake_command "$fake_brew_secondary/bin/qa-brew-tool" qa-brew-tool-secondary
+  make_fake_command "$home_dir/.local/bin/qa-local-tool" qa-local-tool
+  make_fake_command "$home_dir/.npm-global/bin/qa-npm-tool" qa-npm-tool
+  mkdir -p "$home_dir/.config/dotfiles"
+  cat > "$home_dir/.config/dotfiles/local.env.sh" <<'EOF'
+if [ -n "${DOTFILES_QA_LOCAL_ENV_COUNT_FILE:-}" ]; then
+  count=0
+  if [ -r "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" ]; then
+    count=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE")
+  fi
+  count=$((count + 1))
+  mkdir -p "$(dirname "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE")"
+  printf '%s\n' "$count" > "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE"
+  export DOTFILES_QA_LOCAL_ENV_RUNS=$count
+fi
+EOF
+
+  printf '%s\n' "$fake_brew_primary:$fake_brew_secondary"
+}
+
 assert_exists() {
   [ -e "$1" ] || die "expected path to exist: $1"
 }
@@ -173,6 +213,158 @@ assert_default_tool_installed() {
   home_dir=$1
   assert_exists "$home_dir/.local/bin/rtk"
   assert_exists "$home_dir/.local/bin/.rtk-installed"
+}
+
+assert_shell_command_resolution() {
+  shell_name=$1
+  home_dir=$2
+  fake_brew_prefixes=$3
+  expected_brew_prefix=${fake_brew_prefixes%%:*}
+  expected_brew="$expected_brew_prefix/bin/brew"
+  expected_brew_tool="$expected_brew_prefix/bin/qa-brew-tool"
+  local_env_count_file="$home_dir/.local/state/qa-local-env-$shell_name.count"
+  rm -f "$local_env_count_file"
+  case "$shell_name" in
+    bash)
+      env -i HOME="$home_dir" PATH=/usr/bin:/bin TERM=dumb DOTFILES_OS_NAME=Darwin DOTFILES_HOMEBREW_PREFIXES="$fake_brew_prefixes" EXPECT_BREW="$expected_brew" EXPECT_BREW_TOOL="$expected_brew_tool" DOTFILES_QA_LOCAL_ENV_COUNT_FILE="$local_env_count_file" bash --noprofile --norc -i <<'EOF_BASH_PATH'
+set -eu
+. "$HOME/.bash_profile"
+assert_command() {
+  name=$1
+  expected=$2
+  actual=$(command -v "$name" || true)
+  [ "$actual" = "$expected" ] || {
+    echo "unexpected resolution for $name: $actual != $expected" >&2
+    exit 1
+  }
+}
+assert_local_env_once() {
+  actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)
+  [ "${DOTFILES_QA_LOCAL_ENV_RUNS:-0}" = "1" ] || {
+    echo "local.env.sh should have run once in bash, got ${DOTFILES_QA_LOCAL_ENV_RUNS:-0}" >&2
+    exit 1
+  }
+  [ "$actual" = "1" ] || {
+    echo "local.env.sh counter should be 1 in bash, got $actual" >&2
+    exit 1
+  }
+}
+assert_command rtk "$HOME/.local/bin/rtk"
+assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
+assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+assert_command brew "$EXPECT_BREW"
+assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
+assert_local_env_once
+EXPECT_BREW="$EXPECT_BREW" EXPECT_BREW_TOOL="$EXPECT_BREW_TOOL" DOTFILES_QA_LOCAL_ENV_COUNT_FILE="$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" bash --noprofile --rcfile "$HOME/.bashrc" -ic '
+set -eu
+assert_command() {
+  name=$1
+  expected=$2
+  actual=$(command -v "$name" || true)
+  [ "$actual" = "$expected" ] || {
+    echo "unexpected nested resolution for $name: $actual != $expected" >&2
+    exit 1
+  }
+}
+assert_local_env_once() {
+  actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf "%s" 0)
+  [ "${DOTFILES_QA_LOCAL_ENV_RUNS:-0}" = "1" ] || {
+    echo "local.env.sh should stay at one run in nested bash, got ${DOTFILES_QA_LOCAL_ENV_RUNS:-0}" >&2
+    exit 1
+  }
+  [ "$actual" = "1" ] || {
+    echo "local.env.sh counter should stay at 1 in nested bash, got $actual" >&2
+    exit 1
+  }
+}
+assert_command rtk "$HOME/.local/bin/rtk"
+assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
+assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+assert_command brew "$EXPECT_BREW"
+assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
+assert_local_env_once
+'
+      actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)
+      [ "$actual" = "1" ] || die "local.env.sh counter should remain 1 after nested bash, got $actual"
+EOF_BASH_PATH
+      ;;
+    zsh)
+      env -i HOME="$home_dir" PATH=/usr/bin:/bin TERM=dumb DOTFILES_OS_NAME=Darwin DOTFILES_HOMEBREW_PREFIXES="$fake_brew_prefixes" EXPECT_BREW="$expected_brew" EXPECT_BREW_TOOL="$expected_brew_tool" DOTFILES_QA_LOCAL_ENV_COUNT_FILE="$local_env_count_file" ZDOTDIR="$home_dir" zsh -f -i <<'EOF_ZSH_PATH'
+set -eu
+PROMPT=
+PS1=
+. "$HOME/.zshenv"
+PATH=/usr/bin:/bin
+export PATH
+. "$HOME/.zprofile"
+. "$HOME/.zshrc"
+assert_command() {
+  name=$1
+  expected=$2
+  actual=$(command -v "$name" || true)
+  [ "$actual" = "$expected" ] || {
+    print -u2 "unexpected resolution for $name: $actual != $expected"
+    exit 1
+  }
+}
+assert_local_env_once() {
+  actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)
+  [[ "${DOTFILES_QA_LOCAL_ENV_RUNS:-0}" == "1" ]] || {
+    print -u2 "local.env.sh should have run once in zsh, got ${DOTFILES_QA_LOCAL_ENV_RUNS:-0}"
+    exit 1
+  }
+  [[ "$actual" == "1" ]] || {
+    print -u2 "local.env.sh counter should be 1 in zsh, got $actual"
+    exit 1
+  }
+}
+assert_command rtk "$HOME/.local/bin/rtk"
+assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
+assert_command brew "$EXPECT_BREW"
+assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
+assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+assert_local_env_once
+zsh -f -i <<'EOF_NESTED_ZSH'
+set -eu
+PROMPT=
+PS1=
+. "$HOME/.zshenv"
+. "$HOME/.zshrc"
+assert_command() {
+  name=$1
+  expected=$2
+  actual=$(command -v "$name" || true)
+  [ "$actual" = "$expected" ] || {
+    print -u2 "unexpected nested resolution for $name: $actual != $expected"
+    exit 1
+  }
+}
+assert_local_env_once() {
+  actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)
+  [[ "${DOTFILES_QA_LOCAL_ENV_RUNS:-0}" == "1" ]] || {
+    print -u2 "local.env.sh should stay at one run in nested zsh, got ${DOTFILES_QA_LOCAL_ENV_RUNS:-0}"
+    exit 1
+  }
+  [[ "$actual" == "1" ]] || {
+    print -u2 "local.env.sh counter should stay at 1 in nested zsh, got $actual"
+    exit 1
+  }
+}
+assert_command rtk "$HOME/.local/bin/rtk"
+assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
+assert_command brew "$EXPECT_BREW"
+assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
+assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+assert_local_env_once
+EOF_NESTED_ZSH
+      actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)
+      [ "$actual" = "1" ] || die "local.env.sh counter should remain 1 after nested zsh, got $actual"
+EOF_ZSH_PATH
+      ;;
+    *)
+      die "unknown shell for command resolution check: $shell_name"
+      ;;
+  esac
 }
 
 assert_no_shell_wrappers() {
@@ -348,6 +540,7 @@ scenario_end_to_end_flows() {
   mkdir -p "$home_dir" "$backup_root" "$home_dir/.tmp"
   source_repo=$(make_source_repo "$root")
   rtk_installer=$(make_fake_rtk_installer "$root")
+  fake_brew_prefix=$(setup_command_resolution_fixture "$root" "$home_dir")
 
   run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" "$rtk_installer" install --profile linux-desktop
 
@@ -362,6 +555,8 @@ scenario_end_to_end_flows() {
   assert_package_plan "$home_dir"
   assert_tool_plan "$home_dir"
   assert_default_tool_installed "$home_dir"
+  assert_shell_command_resolution bash "$home_dir" "$fake_brew_prefix"
+  assert_shell_command_resolution zsh "$home_dir" "$fake_brew_prefix"
   assert_no_shell_wrappers bash "$home_dir"
   assert_no_shell_wrappers zsh "$home_dir"
   assert_tmux_prefix_default "$home_dir"
@@ -408,6 +603,8 @@ EOF_UPDATE
   assert_symlink_target "$home_dir/.config/dotfiles/profile.d/90-qa-update.sh" "$home_dir/.dotfiles/modules/core/home/.config/dotfiles/profile.d/90-qa-update.sh"
   assert_symlink_target "$home_dir/.config/nvim/init.lua" "$home_dir/.dotfiles/modules/nvim/home/.config/nvim/init.lua"
   assert_symlink_target "$home_dir/.config/tmux/theme.conf" "$home_dir/.dotfiles/modules/visual/home/.config/tmux/theme.conf"
+  assert_shell_command_resolution bash "$home_dir" "$fake_brew_prefix"
+  assert_shell_command_resolution zsh "$home_dir" "$fake_brew_prefix"
   assert_no_shell_wrappers bash "$home_dir" updated
   assert_no_shell_wrappers zsh "$home_dir" updated
   assert_tmux_prefix_default "$home_dir"
@@ -421,6 +618,7 @@ scenario_replace_dirty_checkout() {
   mkdir -p "$home_dir" "$backup_root"
   source_repo=$(make_source_repo "$root")
   rtk_installer=$(make_fake_rtk_installer "$root")
+  fake_brew_prefix=$(setup_command_resolution_fixture "$root" "$home_dir")
 
   git clone --quiet --no-hardlinks "$source_repo" "$home_dir/.dotfiles" >/dev/null 2>&1
   printf '%s\n' '# dirty checkout marker' >> "$home_dir/.dotfiles/README.md"
@@ -434,6 +632,8 @@ scenario_replace_dirty_checkout() {
   assert_symlink_target "$home_dir/.zshrc" "$home_dir/.dotfiles/modules/core/home/.zshrc"
   assert_inventory_profile "$home_dir/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
   assert_default_tool_installed "$home_dir"
+  assert_shell_command_resolution bash "$home_dir" "$fake_brew_prefix"
+  assert_shell_command_resolution zsh "$home_dir" "$fake_brew_prefix"
   log 'replace-dirty-checkout scenario passed'
 }
 
