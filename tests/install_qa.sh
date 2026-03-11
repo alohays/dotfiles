@@ -203,6 +203,7 @@ if [ -n "${EXPECT_QA_UPDATE_MARKER:-}" ]; then
     exit 1
   }
 fi
+bash --noprofile --rcfile "$HOME/.bashrc" -ic 'echo nested-bash:PASS' >/dev/null
 EOF_BASH
       ;;
     zsh)
@@ -224,6 +225,7 @@ if [[ -n "${EXPECT_QA_UPDATE_MARKER:-}" ]]; then
     exit 1
   }
 fi
+zsh -f -i -c 'echo nested-zsh:PASS' >/dev/null
 EOF_ZSH
       ;;
     *)

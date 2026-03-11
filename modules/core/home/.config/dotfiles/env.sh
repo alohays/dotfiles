@@ -4,7 +4,6 @@ if [ "${DOTFILES_ENV_SH_LOADED:-0}" = "1" ]; then
     return 0
 fi
 DOTFILES_ENV_SH_LOADED=1
-export DOTFILES_ENV_SH_LOADED
 
 : "${DOTFILES_HOME:=$HOME/.dotfiles}"
 : "${XDG_CONFIG_HOME:=$HOME/.config}"

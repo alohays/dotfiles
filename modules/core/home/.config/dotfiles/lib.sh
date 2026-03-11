@@ -4,7 +4,6 @@ if [ "${DOTFILES_LIB_SH_LOADED:-0}" = "1" ]; then
     return 0
 fi
 DOTFILES_LIB_SH_LOADED=1
-export DOTFILES_LIB_SH_LOADED
 
 dotfiles_source_optional() {
     [ -n "${1:-}" ] || return 0

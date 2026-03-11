@@ -4,7 +4,6 @@ if [ "${DOTFILES_INTERACTIVE_SH_LOADED:-0}" = "1" ]; then
     return 0
 fi
 DOTFILES_INTERACTIVE_SH_LOADED=1
-export DOTFILES_INTERACTIVE_SH_LOADED
 
 case $- in
     *i*) ;;
