@@ -31,6 +31,9 @@ class InstallQaTests(unittest.TestCase):
     def test_replace_dirty_checkout(self) -> None:
         self.run_qa("replace-dirty")
 
+    def test_preserve_legacy_zsh_init(self) -> None:
+        self.run_qa("preserve-legacy-zsh-init")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
