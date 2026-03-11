@@ -227,6 +227,57 @@ class DotfilesApplyTests(unittest.TestCase):
         self.assertTrue(migrated.exists(), "expected apply to recover local.zprofile.sh from backup history")
         self.assertIn('export PATH="$HOME/.volta/bin:$PATH"', migrated.read_text(encoding="utf-8"))
 
+    def test_apply_restores_legacy_zprofile_from_checkout_backup_when_history_has_broken_symlink(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".profile", "# managed profile\n")
+        self.write_module_file(repo_root, "core", ".zprofile", "# managed zprofile\n")
+
+        backups_root = home / ".local/state/alohays-dotfiles/backups"
+        target_backup_root = backups_root / "20260311T000000Z"
+        checkout_backup_root = backups_root / "checkout-20260311T000000Z"
+        target_backup = target_backup_root / "targets/.zprofile"
+        target_backup.parent.mkdir(parents=True, exist_ok=True)
+        target_backup.symlink_to(home / ".dotfiles/zsh/zprofile")
+        self.write_file(
+            target_backup_root / "metadata.json",
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "created_at": "2026-03-11T00:00:00Z",
+                    "repo_root": str(home / ".dotfiles"),
+                    "profile": "macos-desktop",
+                    "entries": [
+                        {
+                            "target": ".zprofile",
+                            "backup_path": "targets/.zprofile",
+                            "original_kind": "symlink",
+                            "replaced_by": "modules/core/home/.zprofile",
+                        }
+                    ],
+                }
+            ),
+        )
+        self.write_file(
+            checkout_backup_root / "zsh/zprofile",
+            'export PATH="$HOME/.volta/bin:$PATH"\n',
+        )
+
+        result = self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "base",
+        )
+
+        migrated = home / ".config/dotfiles/local.zprofile.sh"
+        self.assertTrue(result["ok"])
+        self.assertTrue(migrated.exists(), "expected checkout backup recovery to recreate local.zprofile.sh")
+        self.assertIn('export PATH="$HOME/.volta/bin:$PATH"', migrated.read_text(encoding="utf-8"))
+
     def test_plan_is_a_true_dry_run(self) -> None:
         repo_root = self.make_temp_repo()
         home = self.make_temp_dir()
