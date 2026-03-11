@@ -1,0 +1,12 @@
+# Canonical repo-owned zshrc.
+
+[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"
+: "${DOTFILES_HOME:=$HOME/.dotfiles}"
+
+dotfiles_source_optional "$HOME/.config/dotfiles/env.sh"
+[[ -o interactive ]] || return 0
+
+dotfiles_source_optional "$HOME/.config/dotfiles/interactive.sh"
+dotfiles_source_optional "$HOME/.config/dotfiles/zsh.sh"
+dotfiles_source_dir "$DOTFILES_HOME/zsh/zsh.d"
+dotfiles_source_optional "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zsh.zsh"

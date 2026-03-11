@@ -17,7 +17,11 @@ dotfiles_source_dir() {
     [ -n "$dir" ] || return 0
     [ -d "$dir" ] || return 0
 
-    for file in "$dir"/*.sh; do
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        setopt localoptions nonomatch
+    fi
+
+    for file in "$dir"/*.sh "$dir"/*.zsh; do
         [ -r "$file" ] || continue
         # shellcheck disable=SC1090
         . "$file"

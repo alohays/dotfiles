@@ -1,4 +1,10 @@
-# Keep zshenv minimal; it is sourced for every zsh invocation.
-[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"
-dotfiles_source_optional "$HOME/.config/dotfiles/env.sh"
-dotfiles_source_optional "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zshenv.sh"
+# Managed wrapper; canonical repo-owned zsh startup lives under $DOTFILES_HOME/zsh/zshenv.
+_dotfiles_wrapper_path=${(%):-%x}
+_dotfiles_wrapper_repo=$(cd "${${_dotfiles_wrapper_path}:A:h}/../../.." 2>/dev/null && pwd -P)
+if [ -n "$_dotfiles_wrapper_repo" ] && [ -r "$_dotfiles_wrapper_repo/zsh/zshenv" ]; then
+  DOTFILES_HOME=$_dotfiles_wrapper_repo
+else
+  : "${DOTFILES_HOME:=$HOME/.dotfiles}"
+fi
+[ -r "$DOTFILES_HOME/zsh/zshenv" ] && . "$DOTFILES_HOME/zsh/zshenv"
+unset _dotfiles_wrapper_path _dotfiles_wrapper_repo

@@ -39,7 +39,7 @@ make_source_repo() {
   root=$1
   snapshot="$root/source-repo"
   mkdir -p "$snapshot"
-  for item in bin bootstrap docs manifests modules profiles scripts tests README.md .gitignore; do
+  for item in bin bootstrap docs manifests modules profiles scripts tests zsh README.md .gitignore; do
     if [ -e "$REPO_ROOT/$item" ]; then
       cp -R "$REPO_ROOT/$item" "$snapshot/$item"
     fi
@@ -248,6 +248,13 @@ assert_shell_command_resolution() {
   expected_brew_tool="$expected_brew_prefix/bin/qa-brew-tool"
   local_env_count_file="$home_dir/.local/state/qa-local-env-$shell_name.count"
   rm -f "$local_env_count_file"
+
+  assert_exists "$home_dir/.dotfiles/zsh/zshenv"
+  assert_exists "$home_dir/.dotfiles/zsh/zprofile"
+  assert_exists "$home_dir/.dotfiles/zsh/zshrc"
+  grep -Eq '(\$DOTFILES_HOME|\.dotfiles)/zsh/zshenv' "$home_dir/.dotfiles/modules/core/home/.zshenv" || die 'managed .zshenv wrapper should delegate to top-level zsh/zshenv'
+  grep -Eq '(\$DOTFILES_HOME|\.dotfiles)/zsh/zprofile' "$home_dir/.dotfiles/modules/core/home/.zprofile" || die 'managed .zprofile wrapper should delegate to top-level zsh/zprofile'
+  grep -Eq '(\$DOTFILES_HOME|\.dotfiles)/zsh/zshrc' "$home_dir/.dotfiles/modules/core/home/.zshrc" || die 'managed .zshrc wrapper should delegate to top-level zsh/zshrc'
   case "$shell_name" in
     bash)
       env -i HOME="$home_dir" PATH=/usr/bin:/bin TERM=dumb DOTFILES_OS_NAME=Darwin DOTFILES_HOMEBREW_PREFIXES="$fake_brew_prefixes" EXPECT_BREW="$expected_brew" EXPECT_BREW_TOOL="$expected_brew_tool" DOTFILES_QA_LOCAL_ENV_COUNT_FILE="$local_env_count_file" bash --noprofile --norc -i <<'EOF_BASH_PATH'

@@ -68,7 +68,7 @@ make_temp_dir() {
 
 make_source_repo() {
   snapshot=$(make_temp_dir)
-  for item in bin bootstrap manifests modules profiles scripts README.md .gitignore; do
+  for item in bin bootstrap manifests modules profiles scripts zsh README.md .gitignore; do
     if [ -e "$REPO_ROOT/$item" ]; then
       cp -R "$REPO_ROOT/$item" "$snapshot/$item"
     fi
@@ -127,6 +127,9 @@ smoke_fresh() {
   run_bootstrap_install linux-desktop
 
   assert_exists "$HOME_DIR/.dotfiles/.git"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zshenv"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zprofile"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zshrc"
   assert_symlink_target "$HOME_DIR/.zshrc" "$HOME_DIR/.dotfiles/modules/core/home/.zshrc"
   assert_symlink_target "$HOME_DIR/.tmux.conf" "$HOME_DIR/.dotfiles/modules/tmux/home/.tmux.conf"
   assert_symlink_target "$HOME_DIR/.config/nvim/init.lua" "$HOME_DIR/.dotfiles/modules/nvim/home/.config/nvim/init.lua"
@@ -148,6 +151,9 @@ smoke_replace_existing() {
   [ -n "${backup_dir:-}" ] || die "expected checkout backup directory under $BACKUP_ROOT"
   assert_exists "$backup_dir/legacy.txt"
   assert_exists "$HOME_DIR/.dotfiles/.git"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zshenv"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zprofile"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zshrc"
   assert_symlink_target "$HOME_DIR/.zshrc" "$HOME_DIR/.dotfiles/modules/core/home/.zshrc"
   assert_symlink_target "$HOME_DIR/.tmux.conf" "$HOME_DIR/.dotfiles/modules/tmux/home/.tmux.conf"
   assert_symlink_target "$HOME_DIR/.config/nvim/init.lua" "$HOME_DIR/.dotfiles/modules/nvim/home/.config/nvim/init.lua"
@@ -162,6 +168,9 @@ smoke_rich_profile() {
   run_bootstrap_install linux-desktop-rich
 
   assert_exists "$HOME_DIR/.dotfiles/.git"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zshenv"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zprofile"
+  assert_exists "$HOME_DIR/.dotfiles/zsh/zshrc"
   assert_symlink_target "$HOME_DIR/.config/nvim/init.lua" "$HOME_DIR/.dotfiles/modules/nvim/home/.config/nvim/init.lua"
   assert_symlink_target "$HOME_DIR/.config/tmux/theme.conf" "$HOME_DIR/.dotfiles/modules/visual/home/.config/tmux/theme.conf"
   assert_symlink_target "$HOME_DIR/.config/wezterm/wezterm.lua" "$HOME_DIR/.dotfiles/modules/terminal/home/.config/wezterm/wezterm.lua"

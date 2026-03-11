@@ -1,0 +1,8 @@
+# Canonical repo-owned zprofile.
+
+[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"
+[ -r "$HOME/.profile" ] && . "$HOME/.profile"
+: "${DOTFILES_HOME:=$HOME/.dotfiles}"
+
+dotfiles_source_optional "$DOTFILES_HOME/zsh/zsh.d/login.zsh"
+dotfiles_source_optional "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zprofile.sh"

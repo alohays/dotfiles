@@ -1,0 +1,10 @@
+# Canonical repo-owned zshenv.
+# Managed home wrappers delegate here so the repo has a visible zsh/ tree.
+
+[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"
+: "${DOTFILES_HOME:=$HOME/.dotfiles}"
+
+# Keep zshenv minimal; it is sourced for every zsh invocation.
+dotfiles_source_optional "$HOME/.config/dotfiles/env.sh"
+dotfiles_source_optional "$DOTFILES_HOME/zsh/zsh.d/envs.zsh"
+dotfiles_source_optional "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zshenv.sh"
