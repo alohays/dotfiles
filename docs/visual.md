@@ -28,7 +28,7 @@ That keeps tmux, prompt, and terminal tabs visually aligned while preserving sto
   - `lualine`
   - `gitsigns`
   - `kanagawa`
-- gives desktop profiles a richer editor screen without changing shell or tmux semantics
+- gives desktop profiles a richer editor screen without default leader remaps or plugin keybinding overrides
 
 ### `terminal`
 - opt-in terminal presets for WezTerm and Alacritty
@@ -36,6 +36,7 @@ That keeps tmux, prompt, and terminal tabs visually aligned while preserving sto
   - `~/.config/wezterm/wezterm.lua`
   - `~/.config/alacritty/alacritty.toml`
 - defaults to Nerd Font-friendly settings, truecolor-safe `xterm-256color`, comfortable padding, and a palette that matches tmux accents
+- avoids terminal-level keyboard remaps such as Option-as-Alt or disabled dead-key handling
 
 ### `prompt`
 - installs `~/.config/dotfiles/interactive.d/80-prompt.sh`

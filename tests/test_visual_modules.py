@@ -33,7 +33,16 @@ class VisualModulesTests(unittest.TestCase):
 
     def shell_env(self, home: Path, **extra: str) -> dict[str, str]:
         env = os.environ.copy()
-        env.update({"HOME": str(home), "TERM": "xterm-256color"})
+        env.update(
+            {
+                "HOME": str(home),
+                "TERM": "xterm-256color",
+                "XDG_CONFIG_HOME": str(home / ".config"),
+                "XDG_CACHE_HOME": str(home / ".cache"),
+                "XDG_STATE_HOME": str(home / ".local" / "state"),
+                "XDG_DATA_HOME": str(home / ".local" / "share"),
+            }
+        )
         env.update(extra)
         return env
 

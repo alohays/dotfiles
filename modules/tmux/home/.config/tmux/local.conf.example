@@ -1,0 +1,6 @@
+# Copy to ~/.config/tmux/local.conf for explicit tmux workflow overrides.
+# Keep the tracked baseline on stock tmux behavior, and opt into extras here.
+#
+# Example: enable tmux-resurrect only when you explicitly want its bindings.
+# if-shell '[ -f ~/.local/share/tmux/plugins/tmux-resurrect/resurrect.tmux ]' \
+#   'run-shell ~/.local/share/tmux/plugins/tmux-resurrect/resurrect.tmux'

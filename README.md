@@ -18,6 +18,7 @@ So the goal here is simple: optimize for coding agents first, humans second. Tha
 
 - default CLI behavior instead of surprising aliases
 - stock tmux prefix and keymap
+- no default shell, terminal, or editor shortcut remaps
 - standard file locations and a predictable bootstrap/apply flow
 - token-efficient environments with less hidden state and less explanation overhead
 - default installation of agent-helpful tools such as RTK when they materially improve agent performance
@@ -37,6 +38,7 @@ This repo is meant to be boring in the right places and opinionated in the usefu
 - keep defaults close to upstream behavior
 - avoid command-shadowing aliases and surprise shell traps
 - keep tmux on the stock prefix and keymap
+- keep shell/editor shortcut remaps and workflow plugins opt-in
 - make visual polish opt-in instead of forcing themes everywhere
 - install proven agent-helpful tools by default when they measurably help coding agents work better
 - replace older dotfiles installs cleanly, with one confirmation and backups
@@ -152,6 +154,15 @@ You can inspect or override the tool flow with:
 
 That means RTK can be part of the default agent-first setup today, and later be swapped for a better tool without turning the core dotfiles into a weird non-standard environment.
 
+Interactive workflow extras that change shortcuts or editor/shell behavior stay opt-in. Examples:
+
+```sh
+~/.dotfiles/bin/dotfiles tools install zsh-plugins
+~/.dotfiles/bin/dotfiles tools install tmux-resurrect
+```
+
+If you enable those extras, wire them up from local override files such as `~/.config/dotfiles/local.interactive.sh`, `~/.config/dotfiles/local.zsh.zsh`, or `~/.config/tmux/local.conf` so the tracked baseline stays standard-first.
+
 ## Local overlays and secrets
 
 Keep host-specific data outside the repo. Examples include:
@@ -180,9 +191,9 @@ A stricter QA suite lives in `tests/install_qa.sh` and `tests/test_install_qa.py
 
 The base config stays standard-first, but the desktop layer is now richer:
 - `tmux`: safe terminal capability defaults + stock-keymap tmux baseline
-- `nvim`: a bounded Neovim UI layer for desktop profiles
+- `nvim`: a bounded Neovim UI layer for desktop profiles without default key remaps
 - `visual`: tmux theme and monitored status presentation
-- `terminal` + `prompt`: richer opt-in polish through the `*-desktop-rich` profiles
+- `terminal` + `prompt`: richer opt-in polish through the `*-desktop-rich` profiles without keyboard-semantic remaps
 
 See [`docs/visual.md`](docs/visual.md) for the layering model and activation guidance.
 

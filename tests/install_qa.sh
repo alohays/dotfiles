@@ -521,6 +521,8 @@ assert_tmux_prefix_default() {
     && die "tmux config overrides prefix despite fallback static check"
   grep -Eq '(^|[[:space:]])unbind-key[[:space:]]+C-b' "$home_dir/.tmux.conf" \
     && die "tmux config unbinds stock prefix C-b despite fallback static check"
+  grep -q 'tmux-resurrect/resurrect.tmux' "$home_dir/.tmux.conf" \
+    && die "tmux config auto-loads tmux-resurrect despite standard-first baseline"
   tmux -S "$socket_path" kill-server >/dev/null 2>&1 || true
 }
 
