@@ -21,6 +21,7 @@ dotfiles_apply_base_env() {
             ;;
     esac
 
+    dotfiles_prepend_path "$DOTFILES_HOME/bin"
     dotfiles_prepend_path "$HOME/.npm-global/bin"
     dotfiles_prepend_path "$HOME/bin"
     dotfiles_prepend_path "$HOME/.local/bin"
