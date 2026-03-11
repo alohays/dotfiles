@@ -129,6 +129,8 @@ If an older dotfiles checkout or managed config already exists, the installer sh
 
 The goal is clean replacement, not in-place mutation of unknown legacy layouts.
 
+If an older `~/.zshenv`, `~/.zprofile`, or `~/.zshrc` contained machine-local PATH/tool initialization (for example Homebrew, Volta, or NVM), install/apply now backs the file up and auto-migrates that legacy zsh snippet into the matching unmanaged local overlay under `~/.config/dotfiles/`. Review those generated `local.zsh*` files after the first install/update and trim anything you no longer need.
+
 ## Package tiers
 
 Package bootstrap is designed around a small default tier plus opt-in extras:

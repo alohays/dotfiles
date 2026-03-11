@@ -142,6 +142,91 @@ class DotfilesApplyTests(unittest.TestCase):
         self.assertEqual(backup_file.read_text(encoding="utf-8"), "legacy config\n")
         self.assert_symlink_to(home / ".zshrc", repo_root / "modules/core/.zshrc")
 
+    def test_apply_auto_migrates_legacy_zprofile_into_local_overlay(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".profile", "# managed profile\n")
+        self.write_module_file(repo_root, "core", ".zprofile", "# managed zprofile\n")
+        legacy = 'export PATH="$HOME/.volta/bin:$PATH"\n'
+        self.write_file(home / ".zprofile", legacy)
+
+        result = self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "base",
+        )
+
+        self.assertTrue(result["ok"])
+        migrated = home / ".config/dotfiles/local.zprofile.sh"
+        self.assertTrue(migrated.exists(), "expected legacy zprofile migration file to be created")
+        migrated_text = migrated.read_text(encoding="utf-8")
+        self.assertIn('export PATH="$HOME/.volta/bin:$PATH"', migrated_text)
+        self.assertTrue(any("auto-migrated legacy .zprofile" in note for note in result["notes"]))
+        self.assert_symlink_to(home / ".zprofile", repo_root / "modules/core/home/.zprofile")
+
+    def test_apply_does_not_overwrite_existing_local_zprofile_overlay(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".profile", "# managed profile\n")
+        self.write_module_file(repo_root, "core", ".zprofile", "# managed zprofile\n")
+        self.write_file(home / ".zprofile", 'export PATH="$HOME/.legacy/bin:$PATH"\n')
+        existing_overlay = home / ".config/dotfiles/local.zprofile.sh"
+        self.write_file(existing_overlay, "# keep me\n")
+
+        result = self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "base",
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(existing_overlay.read_text(encoding="utf-8"), "# keep me\n")
+        self.assertTrue(
+            any("skipped auto-migration because .config/dotfiles/local.zprofile.sh already exists" in note for note in result["notes"])
+        )
+
+    def test_apply_restores_legacy_zprofile_from_prior_backup_when_overlay_is_missing(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".profile", "# managed profile\n")
+        self.write_module_file(repo_root, "core", ".zprofile", "# managed zprofile\n")
+        self.write_file(home / ".zprofile", 'export PATH="$HOME/.volta/bin:$PATH"\n')
+
+        self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "base",
+        )
+
+        migrated = home / ".config/dotfiles/local.zprofile.sh"
+        migrated.unlink()
+
+        result = self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "base",
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(migrated.exists(), "expected apply to recover local.zprofile.sh from backup history")
+        self.assertIn('export PATH="$HOME/.volta/bin:$PATH"', migrated.read_text(encoding="utf-8"))
+
     def test_plan_is_a_true_dry_run(self) -> None:
         repo_root = self.make_temp_repo()
         home = self.make_temp_dir()

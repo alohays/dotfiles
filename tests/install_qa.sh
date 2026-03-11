@@ -389,6 +389,34 @@ EOF_ZSH_PATH
   esac
 }
 
+assert_legacy_zsh_init_preserved() {
+  home_dir=$1
+  env -i HOME="$home_dir" PATH=/usr/bin:/bin TERM=dumb ZDOTDIR="$home_dir" zsh -f -i <<'EOF_LEGACY_ZSH'
+set -eu
+PROMPT=
+PS1=
+. "$HOME/.zshenv"
+PATH=/usr/bin:/bin
+export PATH
+. "$HOME/.zprofile"
+. "$HOME/.zshrc"
+legacy_file="$HOME/.config/dotfiles/local.zprofile.sh"
+[[ -f "$legacy_file" ]] || {
+  print -u2 "missing auto-migrated local.zprofile.sh"
+  exit 1
+}
+grep -q 'export PATH="$HOME/.volta/bin:$PATH"' "$legacy_file" || {
+  print -u2 "legacy PATH export was not preserved in local.zprofile.sh"
+  exit 1
+}
+actual=$(command -v qa-legacy-node-tool || true)
+[[ "$actual" == "$HOME/.volta/bin/qa-legacy-node-tool" ]] || {
+  print -u2 "legacy qa-legacy-node-tool did not resolve after install: $actual"
+  exit 1
+}
+EOF_LEGACY_ZSH
+}
+
 assert_no_shell_wrappers() {
   shell_name=$1
   home_dir=$2
@@ -677,6 +705,31 @@ scenario_replace_dirty_checkout() {
   log 'replace-dirty-checkout scenario passed'
 }
 
+scenario_preserve_legacy_zsh_init() {
+  root=$(make_scenario_root)
+  home_dir="$root/home"
+  backup_root="$root/backups"
+  mkdir -p "$home_dir" "$backup_root" "$home_dir/.volta/bin"
+  source_repo=$(make_source_repo "$root")
+  rtk_installer=$(make_fake_rtk_installer "$root")
+
+  make_fake_command "$home_dir/.volta/bin/qa-legacy-node-tool" qa-legacy-node-tool
+  cat > "$home_dir/.zprofile" <<'EOF_ZPROFILE'
+export PATH="$HOME/.volta/bin:$PATH"
+EOF_ZPROFILE
+  : > "$home_dir/.zshenv"
+  : > "$home_dir/.zshrc"
+
+  run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" "$rtk_installer" install --profile macos-desktop
+
+  assert_symlink_target "$home_dir/.zprofile" "$home_dir/.dotfiles/modules/core/home/.zprofile"
+  assert_legacy_zsh_init_preserved "$home_dir"
+  rm -f "$home_dir/.config/dotfiles/local.zprofile.sh"
+  HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" "$home_dir/.dotfiles/bin/dotfiles" apply --profile macos-desktop >/dev/null
+  assert_legacy_zsh_init_preserved "$home_dir"
+  log 'preserve-legacy-zsh-init scenario passed'
+}
+
 scenario_rich_profile_flows() {
   root=$(make_scenario_root)
   home_dir="$root/home"
@@ -723,12 +776,16 @@ case "${1:-all}" in
   replace-dirty)
     scenario_replace_dirty_checkout
     ;;
+  preserve-legacy-zsh-init)
+    scenario_preserve_legacy_zsh_init
+    ;;
   rich)
     scenario_rich_profile_flows
     ;;
   all)
     scenario_end_to_end_flows
     scenario_replace_dirty_checkout
+    scenario_preserve_legacy_zsh_init
     scenario_rich_profile_flows
     ;;
   *)

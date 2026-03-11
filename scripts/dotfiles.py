@@ -19,6 +19,11 @@ DEFAULT_INVENTORY_FILE = "managed-targets.json"
 DEFAULT_BACKUPS_DIR = "backups"
 SKIP_NAMES = {".DS_Store", ".gitkeep"}
 SKIP_PARTS = {".git", "__pycache__"}
+AUTO_MIGRATED_ZSH_FILES = {
+    ".zshenv": ".config/dotfiles/local.zshenv.sh",
+    ".zprofile": ".config/dotfiles/local.zprofile.sh",
+    ".zshrc": ".config/dotfiles/local.zsh.zsh",
+}
 
 
 class DotfilesError(RuntimeError):
@@ -314,8 +319,85 @@ def cleanup_empty_parents(start: Path, stop_at: Path) -> None:
         current = current.parent
 
 
+def auto_migrate_zsh_backup(
+    home: Path,
+    backup_source: Path,
+    target_rel: str,
+    original_kind: str,
+    notes: list[str],
+) -> None:
+    destination_rel = AUTO_MIGRATED_ZSH_FILES.get(target_rel)
+    if destination_rel is None or original_kind != "file" or not backup_source.is_file():
+        return
+
+    destination = home / destination_rel
+    if path_exists(destination):
+        notes.append(
+            f"legacy {target_rel} was backed up at {normalize_relpath(backup_source.relative_to(home))}; "
+            f"skipped auto-migration because {destination_rel} already exists"
+        )
+        return
+
+    content = backup_source.read_text(encoding="utf-8")
+    if not content.strip():
+        return
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    header = (
+        f"# Auto-migrated from backed-up {target_rel} on {utc_now()}.\n"
+        "# Review and trim this file after confirming your legacy commands still work.\n\n"
+    )
+    if not content.endswith("\n"):
+        content += "\n"
+    destination.write_text(header + content, encoding="utf-8")
+    notes.append(f"auto-migrated legacy {target_rel} to {destination_rel}")
+
+
+def restore_zsh_migrations_from_history(home: Path, backups_root: Path, notes: list[str]) -> None:
+    if not backups_root.exists():
+        return
+
+    metadata_paths = sorted(backups_root.glob("*/metadata.json"), reverse=True)
+    if not metadata_paths:
+        return
+
+    for target_rel, destination_rel in AUTO_MIGRATED_ZSH_FILES.items():
+        if path_exists(home / destination_rel):
+            continue
+
+        for metadata_path in metadata_paths:
+            metadata = load_json(metadata_path)
+            entries = metadata.get("entries", [])
+            if not isinstance(entries, list):
+                continue
+            matching_entry = next(
+                (
+                    entry
+                    for entry in entries
+                    if entry.get("target") == target_rel and entry.get("original_kind") == "file"
+                ),
+                None,
+            )
+            if matching_entry is None:
+                continue
+
+            backup_path = matching_entry.get("backup_path")
+            if not backup_path:
+                continue
+            backup_source = metadata_path.parent / backup_path
+            auto_migrate_zsh_backup(
+                home=home,
+                backup_source=backup_source,
+                target_rel=target_rel,
+                original_kind="file",
+                notes=notes,
+            )
+            break
+
+
 def apply_plan(plan: dict[str, Any], dry_run: bool) -> dict[str, Any]:
     actions = list(plan["actions"])
+    notes = list(plan["notes"])
     if dry_run:
         return {
             "ok": True,
@@ -325,7 +407,7 @@ def apply_plan(plan: dict[str, Any], dry_run: bool) -> dict[str, Any]:
             "profile": plan["profile"],
             "inventory_path": plan["inventory_path"],
             "backup_metadata_path": None,
-            "notes": plan["notes"],
+            "notes": notes,
             "actions": actions,
         }
 
@@ -369,12 +451,21 @@ def apply_plan(plan: dict[str, Any], dry_run: bool) -> dict[str, Any]:
                     "replaced_by": spec["source_rel"],
                 }
             )
+            auto_migrate_zsh_backup(
+                home=home,
+                backup_source=backup_destination,
+                target_rel=action["target"],
+                original_kind=original_kind,
+                notes=notes,
+            )
 
         if path_exists(target):
             if target.is_dir():
                 raise DotfilesError(f"cannot replace existing directory at {target}")
             target.unlink()
         target.symlink_to(Path(spec["source"]))
+
+    restore_zsh_migrations_from_history(home=home, backups_root=backups_root, notes=notes)
 
     inventory_payload = {
         "schema_version": 1,
@@ -415,7 +506,7 @@ def apply_plan(plan: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         "profile": plan["profile"],
         "inventory_path": str(inventory_path),
         "backup_metadata_path": backup_metadata_path,
-        "notes": plan["notes"],
+        "notes": notes,
         "actions": actions,
     }
 
