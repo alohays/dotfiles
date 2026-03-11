@@ -39,7 +39,7 @@ make_source_repo() {
   root=$1
   snapshot="$root/source-repo"
   mkdir -p "$snapshot"
-  for item in bin bootstrap docs manifests modules profiles scripts tests README.md .gitignore; do
+  for item in bin bootstrap docs manifests modules profiles scripts tests zsh README.md .gitignore; do
     if [ -e "$REPO_ROOT/$item" ]; then
       cp -R "$REPO_ROOT/$item" "$snapshot/$item"
     fi
@@ -92,6 +92,12 @@ setup_command_resolution_fixture() {
   make_fake_command "$fake_brew_secondary/bin/qa-brew-tool" qa-brew-tool-secondary
   make_fake_command "$home_dir/.local/bin/qa-local-tool" qa-local-tool
   make_fake_command "$home_dir/.npm-global/bin/qa-npm-tool" qa-npm-tool
+  make_fake_command "$home_dir/.volta/bin/node" node-via-volta
+  make_fake_command "$home_dir/.volta/bin/npm" npm-via-volta
+  make_fake_command "$home_dir/.pyenv/shims/python3" python3-via-pyenv
+  make_fake_command "$home_dir/.pyenv/shims/pip3" pip3-via-pyenv
+  make_fake_command "$home_dir/.miniforge3/condabin/conda" conda-via-miniforge
+  make_fake_command "$home_dir/.miniforge3/bin/conda" conda-exe-via-miniforge
   mkdir -p "$home_dir/.config/dotfiles"
   cat > "$home_dir/.config/dotfiles/local.env.sh" <<'EOF'
 if [ -n "${DOTFILES_QA_LOCAL_ENV_COUNT_FILE:-}" ]; then
@@ -242,6 +248,13 @@ assert_shell_command_resolution() {
   expected_brew_tool="$expected_brew_prefix/bin/qa-brew-tool"
   local_env_count_file="$home_dir/.local/state/qa-local-env-$shell_name.count"
   rm -f "$local_env_count_file"
+
+  assert_exists "$home_dir/.dotfiles/zsh/zshenv"
+  assert_exists "$home_dir/.dotfiles/zsh/zprofile"
+  assert_exists "$home_dir/.dotfiles/zsh/zshrc"
+  grep -Eq '(\$DOTFILES_HOME|\.dotfiles)/zsh/zshenv' "$home_dir/.dotfiles/modules/core/home/.zshenv" || die 'managed .zshenv wrapper should delegate to top-level zsh/zshenv'
+  grep -Eq '(\$DOTFILES_HOME|\.dotfiles)/zsh/zprofile' "$home_dir/.dotfiles/modules/core/home/.zprofile" || die 'managed .zprofile wrapper should delegate to top-level zsh/zprofile'
+  grep -Eq '(\$DOTFILES_HOME|\.dotfiles)/zsh/zshrc' "$home_dir/.dotfiles/modules/core/home/.zshrc" || die 'managed .zshrc wrapper should delegate to top-level zsh/zshrc'
   case "$shell_name" in
     bash)
       env -i HOME="$home_dir" PATH=/usr/bin:/bin TERM=dumb DOTFILES_OS_NAME=Darwin DOTFILES_HOMEBREW_PREFIXES="$fake_brew_prefixes" EXPECT_BREW="$expected_brew" EXPECT_BREW_TOOL="$expected_brew_tool" DOTFILES_QA_LOCAL_ENV_COUNT_FILE="$local_env_count_file" bash --noprofile --norc -i <<'EOF_BASH_PATH'
@@ -271,8 +284,16 @@ assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+assert_command node "$HOME/.volta/bin/node"
+assert_command npm "$HOME/.volta/bin/npm"
+assert_command python3 "$HOME/.pyenv/shims/python3"
+assert_command conda "$HOME/.miniforge3/condabin/conda"
 assert_command brew "$EXPECT_BREW"
 assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
+[ "${CONDA_EXE:-}" = "$HOME/.miniforge3/bin/conda" ] || {
+  echo "unexpected CONDA_EXE: ${CONDA_EXE:-}" >&2
+  exit 1
+}
 assert_local_env_once
 EXPECT_BREW="$EXPECT_BREW" EXPECT_BREW_TOOL="$EXPECT_BREW_TOOL" DOTFILES_QA_LOCAL_ENV_COUNT_FILE="$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" bash --noprofile --rcfile "$HOME/.bashrc" -ic '
 set -eu
@@ -300,8 +321,16 @@ assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+assert_command node "$HOME/.volta/bin/node"
+assert_command npm "$HOME/.volta/bin/npm"
+assert_command python3 "$HOME/.pyenv/shims/python3"
+assert_command conda "$HOME/.miniforge3/condabin/conda"
 assert_command brew "$EXPECT_BREW"
 assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
+[ "${CONDA_EXE:-}" = "$HOME/.miniforge3/bin/conda" ] || {
+  echo "unexpected nested CONDA_EXE: ${CONDA_EXE:-}" >&2
+  exit 1
+}
 assert_local_env_once
 '
       actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)
@@ -341,9 +370,17 @@ assert_local_env_once() {
 assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
+assert_command node "$HOME/.volta/bin/node"
+assert_command npm "$HOME/.volta/bin/npm"
+assert_command python3 "$HOME/.pyenv/shims/python3"
+assert_command conda "$HOME/.miniforge3/condabin/conda"
 assert_command brew "$EXPECT_BREW"
 assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+[[ "${CONDA_EXE:-}" == "$HOME/.miniforge3/bin/conda" ]] || {
+  print -u2 "unexpected CONDA_EXE: ${CONDA_EXE:-}"
+  exit 1
+}
 assert_local_env_once
 zsh -f -i <<'EOF_NESTED_ZSH'
 set -eu
@@ -374,9 +411,17 @@ assert_local_env_once() {
 assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
+assert_command node "$HOME/.volta/bin/node"
+assert_command npm "$HOME/.volta/bin/npm"
+assert_command python3 "$HOME/.pyenv/shims/python3"
+assert_command conda "$HOME/.miniforge3/condabin/conda"
 assert_command brew "$EXPECT_BREW"
 assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+[[ "${CONDA_EXE:-}" == "$HOME/.miniforge3/bin/conda" ]] || {
+  print -u2 "unexpected nested CONDA_EXE: ${CONDA_EXE:-}"
+  exit 1
+}
 assert_local_env_once
 EOF_NESTED_ZSH
       actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)

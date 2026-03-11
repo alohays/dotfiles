@@ -344,9 +344,6 @@ def zsh_backup_content_source(
             else:
                 resolved_link_target = (original_target.parent / raw_link_target).resolve(strict=False)
 
-            if resolved_link_target.is_file():
-                candidate_paths.append(resolved_link_target)
-
             dotfiles_home = home / ".dotfiles"
             try:
                 checkout_relative = resolved_link_target.relative_to(dotfiles_home)
@@ -358,6 +355,9 @@ def zsh_backup_content_source(
                     checkout_candidate = checkout_backup / checkout_relative
                     if checkout_candidate.is_file():
                         candidate_paths.append(checkout_candidate)
+
+            if resolved_link_target.is_file():
+                candidate_paths.append(resolved_link_target)
 
     seen: set[str] = set()
     for candidate in candidate_paths:

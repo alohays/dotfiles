@@ -22,10 +22,50 @@ dotfiles_apply_base_env() {
     esac
 
     dotfiles_prepend_path "$DOTFILES_HOME/bin"
+    dotfiles_prepend_path "$HOME/.volta/bin"
+    dotfiles_prepend_path "$HOME/.asdf/bin"
+    dotfiles_prepend_path "$HOME/.asdf/shims"
+    dotfiles_prepend_path "$HOME/.pyenv/bin"
+    dotfiles_prepend_path "$HOME/.pyenv/shims"
+    dotfiles_prepend_path "$HOME/.nodenv/bin"
+    dotfiles_prepend_path "$HOME/.nodenv/shims"
+    dotfiles_prepend_path "$HOME/.local/share/mise/shims"
+    dotfiles_prepend_path "$HOME/.yarn/bin"
     dotfiles_prepend_path "$HOME/.npm-global/bin"
     dotfiles_prepend_path "$HOME/bin"
     dotfiles_prepend_path "$HOME/.local/bin"
+
+    dotfiles_prepend_first_path \
+        "$HOME/.mambaforge/condabin" \
+        "$HOME/mambaforge/condabin" \
+        "$HOME/.miniforge3/condabin" \
+        "$HOME/miniforge3/condabin" \
+        "$HOME/.miniconda3/condabin" \
+        "$HOME/miniconda3/condabin" \
+        "/opt/miniforge3/condabin" \
+        "/opt/miniconda3/condabin" \
+        "/usr/local/miniconda3/condabin"
     export PATH
+
+    if [ -z "${CONDA_EXE:-}" ]; then
+        for conda_exe in \
+            "$HOME/.mambaforge/bin/conda" \
+            "$HOME/mambaforge/bin/conda" \
+            "$HOME/.miniforge3/bin/conda" \
+            "$HOME/miniforge3/bin/conda" \
+            "$HOME/.miniconda3/bin/conda" \
+            "$HOME/miniconda3/bin/conda" \
+            "/opt/miniforge3/bin/conda" \
+            "/opt/miniconda3/bin/conda" \
+            "/usr/local/miniconda3/bin/conda"
+        do
+            if [ -x "$conda_exe" ]; then
+                CONDA_EXE=$conda_exe
+                export CONDA_EXE
+                break
+            fi
+        done
+    fi
 }
 
 dotfiles_apply_base_env

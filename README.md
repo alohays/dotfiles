@@ -65,6 +65,7 @@ bin/dotfiles
 scripts/dotfiles.py
 manifests/manifest.json
 profiles/*.json
+zsh/
 modules/core/
 modules/tmux/
 modules/nvim/
@@ -130,6 +131,23 @@ If an older dotfiles checkout or managed config already exists, the installer sh
 The goal is clean replacement, not in-place mutation of unknown legacy layouts.
 
 If an older `~/.zshenv`, `~/.zprofile`, or `~/.zshrc` contained machine-local PATH/tool initialization (for example Homebrew, Volta, or NVM), install/apply now backs the file up and auto-migrates that legacy zsh snippet into the matching unmanaged local overlay under `~/.config/dotfiles/`. This also covers legacy symlink-based layouts such as older `~/.dotfiles/zsh/*` installs by recovering the real file contents from the checkout backup when the backed-up shell target itself is only a broken symlink. Review those generated `local.zsh*` files after the first install/update and trim anything you no longer need.
+
+Shell startup is now split into an explicit top-level `zsh/` tree inspired by `wookayin/dotfiles`:
+
+- `zsh/zshenv`
+- `zsh/zprofile`
+- `zsh/zshrc`
+- `zsh/zsh.d/`
+
+The managed home targets `~/.zshenv`, `~/.zprofile`, and `~/.zshrc` remain under `modules/core/home/` for apply/install compatibility, but they are now thin wrappers that delegate straight into `~/.dotfiles/zsh/*`. That keeps the shell layout visible in the repo while preserving the current module/profile system.
+
+The managed shell startup now also performs baseline toolchain discovery inspired by older `wookayin/dotfiles` layouts:
+
+- Node managers / shims: `~/.volta/bin`, `~/.asdf/{bin,shims}`, `~/.nodenv/{bin,shims}`, `~/.local/share/mise/shims`, `~/.yarn/bin`
+- Python managers / shims: `~/.pyenv/{bin,shims}` plus common Miniforge/Miniconda `condabin` locations
+- Interactive compatibility: if only `python3`/`pip3` exist, interactive shells expose `python`/`pip` aliases automatically
+
+Slower manager-specific hooks (for example custom `nvm`/`fnm` setup) can still live in the unmanaged local overlay files when needed.
 
 ## Package tiers
 

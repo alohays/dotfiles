@@ -17,7 +17,11 @@ dotfiles_source_dir() {
     [ -n "$dir" ] || return 0
     [ -d "$dir" ] || return 0
 
-    for file in "$dir"/*.sh; do
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        setopt localoptions nonomatch
+    fi
+
+    for file in "$dir"/*.sh "$dir"/*.zsh; do
         [ -r "$file" ] || continue
         # shellcheck disable=SC1090
         . "$file"
@@ -33,6 +37,18 @@ dotfiles_prepend_path() {
         *":$dir:"*) ;;
         *) PATH=$dir${PATH:+":$PATH"} ;;
     esac
+}
+
+dotfiles_prepend_first_path() {
+    while [ "$#" -gt 0 ]; do
+        dir=$1
+        shift
+        [ -n "$dir" ] || continue
+        [ -d "$dir" ] || continue
+        dotfiles_prepend_path "$dir"
+        return 0
+    done
+    return 0
 }
 
 dotfiles_prepend_prefix_bins() {
