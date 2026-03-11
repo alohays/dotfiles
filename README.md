@@ -93,17 +93,27 @@ The bootstrap flow clones or updates the repo, detects the baseline environment,
 
 ## Update and re-apply
 
-After the repo is installed in `~/.dotfiles`:
+After the repo is installed in `~/.dotfiles`, new login shells should have `dotfiles` on `PATH` via `$DOTFILES_HOME/bin`. If you're still in the shell that ran bootstrap, either start a new login shell or keep using `~/.dotfiles/bin/dotfiles` directly:
 
 ```sh
-~/.dotfiles/bin/dotfiles update
-~/.dotfiles/bin/dotfiles apply
+dotfiles update
+dotfiles apply
 ```
+
+`dotfiles update` now syncs the checkout to `origin/main` by default (or `$DOTFILES_BRANCH` when set), auto-stashes local checkout changes if needed, and then re-applies the repo. Auto-stashed checkout changes stay in `git stash` for manual review or restore (`git stash list`, `git stash pop`).
+
+If you want the quickest re-sync and do not need to re-check default tool installation, use the upstream-inspired fast path:
+
+```sh
+dotfiles update --fast
+```
+
+For branch/remote overrides or to disable auto-stashing, see `dotfiles update --help`.
 
 For explicit profile selection, use the apply command with the profile you want, for example:
 
 ```sh
-~/.dotfiles/bin/dotfiles apply --profile linux-desktop
+dotfiles apply --profile linux-desktop
 ```
 
 ## Replacement behavior

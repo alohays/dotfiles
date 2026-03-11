@@ -173,6 +173,24 @@ assert_git_clean() {
   [ -z "$status" ] || die "expected clean git checkout at $path, found: $status"
 }
 
+assert_git_stash_contains() {
+  path=$1
+  expected_pattern=$2
+  stash_list=$(git -C "$path" stash list)
+  printf '%s\n' "$stash_list" | grep -Eq "$expected_pattern" || {
+    die "expected git stash at $path to match $expected_pattern, got: $stash_list"
+  }
+}
+
+assert_git_branch_contains() {
+  path=$1
+  expected_pattern=$2
+  branch_list=$(git -C "$path" branch --list)
+  printf '%s\n' "$branch_list" | grep -Eq "$expected_pattern" || {
+    die "expected git branch at $path to match $expected_pattern, got: $branch_list"
+  }
+}
+
 resolve_package_manager() {
   if command -v apt-get >/dev/null 2>&1; then
     printf '%s\n' apt
@@ -249,6 +267,7 @@ assert_local_env_once() {
     exit 1
   }
 }
+assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
@@ -277,6 +296,7 @@ assert_local_env_once() {
     exit 1
   }
 }
+assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
@@ -318,6 +338,7 @@ assert_local_env_once() {
     exit 1
   }
 }
+assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
 assert_command brew "$EXPECT_BREW"
@@ -350,6 +371,7 @@ assert_local_env_once() {
     exit 1
   }
 }
+assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
 assert_command brew "$EXPECT_BREW"
@@ -596,9 +618,11 @@ EOF_UPDATE
   git -C "$source_repo" commit -m 'qa: add update marker' >/dev/null
   expected_head=$(git -C "$source_repo" rev-parse HEAD)
 
-  HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" DOTFILES_DEFAULT_AGENT_TOOLS=rtk DOTFILES_TOOLS_DEFAULT_METHOD=official "$home_dir/.dotfiles/bin/dotfiles" update --profile linux-desktop >/dev/null
+  printf '%s\n' '# qa dirty checkout marker' >> "$home_dir/.dotfiles/README.md"
+  HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" DOTFILES_DEFAULT_AGENT_TOOLS=rtk DOTFILES_TOOLS_DEFAULT_METHOD=official "$home_dir/.dotfiles/bin/dotfiles" update --fast --profile linux-desktop >/dev/null
   actual_head=$(git -C "$home_dir/.dotfiles" rev-parse HEAD)
   [ "$actual_head" = "$expected_head" ] || die "update did not pull latest commit: $actual_head != $expected_head"
+  assert_git_stash_contains "$home_dir/.dotfiles" 'dotfiles-update-'
   assert_inventory_has_target "$home_dir/.local/state/alohays-dotfiles/managed-targets.json" .config/dotfiles/profile.d/90-qa-update.sh
   assert_symlink_target "$home_dir/.config/dotfiles/profile.d/90-qa-update.sh" "$home_dir/.dotfiles/modules/core/home/.config/dotfiles/profile.d/90-qa-update.sh"
   assert_symlink_target "$home_dir/.config/nvim/init.lua" "$home_dir/.dotfiles/modules/nvim/home/.config/nvim/init.lua"
@@ -608,6 +632,20 @@ EOF_UPDATE
   assert_no_shell_wrappers bash "$home_dir" updated
   assert_no_shell_wrappers zsh "$home_dir" updated
   assert_tmux_prefix_default "$home_dir"
+
+  git -C "$home_dir/.dotfiles" config user.name 'QA Local'
+  git -C "$home_dir/.dotfiles" config user.email 'qa-local@example.com'
+  printf '%s\n' '# qa local ahead commit' >> "$home_dir/.dotfiles/README.md"
+  git -C "$home_dir/.dotfiles" add README.md
+  git -C "$home_dir/.dotfiles" commit -m 'qa: local ahead commit' >/dev/null
+  local_ahead_head=$(git -C "$home_dir/.dotfiles" rev-parse HEAD)
+  [ "$local_ahead_head" != "$expected_head" ] || die 'expected local branch to move ahead of origin/main'
+
+  HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" DOTFILES_DEFAULT_AGENT_TOOLS=rtk DOTFILES_TOOLS_DEFAULT_METHOD=official "$home_dir/.dotfiles/bin/dotfiles" update --fast --profile linux-desktop >/dev/null
+  actual_head=$(git -C "$home_dir/.dotfiles" rev-parse HEAD)
+  [ "$actual_head" = "$expected_head" ] || die "update did not reset local branch to origin/main: $actual_head != $expected_head"
+  assert_git_branch_contains "$home_dir/.dotfiles" 'dotfiles-update-backup-main-'
+  ! grep -q '# qa local ahead commit' "$home_dir/.dotfiles/README.md" || die 'local ahead commit should not remain on synced main checkout'
   log 'end-to-end flow scenario passed'
 }
 

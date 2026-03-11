@@ -2,6 +2,7 @@
 set -eu
 
 SCRIPT_PATH=$0
+CLI_NAME=${DOTFILES_CLI_NAME:-$SCRIPT_PATH}
 REPO_ROOT=${DOTFILES_REPO_ROOT:-}
 if [ -z "$REPO_ROOT" ]; then
   SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
@@ -13,7 +14,7 @@ fi
 
 usage() {
   cat <<USAGE
-Usage: bin/dotfiles [global-options] <command> [command-args]
+Usage: $CLI_NAME [global-options] <command> [command-args]
 
 Global options:
   --repo-root <path>         Override repo root detection
@@ -29,9 +30,32 @@ Commands:
   bootstrap                  Run bootstrap/install.sh using this repo as the source
   install                    Apply configs from this checkout if the apply engine exists
   apply                      Invoke scripts/dotfiles.py apply
-  update                     git pull --ff-only, then run install unless --skip-apply
+  update                     sync to origin/main (or \$DOTFILES_BRANCH), then run install
   packages                   Install default/opt-in package sets via native package managers
   tools                      Inspect or install external agent tools such as RTK
+
+See "$CLI_NAME update --help" for update-specific options such as --fast.
+USAGE
+}
+
+update_usage() {
+  cat <<USAGE
+Usage: $CLI_NAME update [update-options] [install-options]
+
+Sync this checkout to the latest state of a git remote branch, then run the
+normal install/apply flow for the updated repo.
+
+Update options:
+  --remote <name>            Git remote to sync from (default: origin)
+  --branch <name>            Git branch to sync from (default: \$DOTFILES_BRANCH or main)
+  --fast                     Skip default agent-tool installation after syncing
+  --no-stash                 Fail instead of auto-stashing local checkout changes
+  --help, -h                 Show this help
+
+Auto-stashed checkout changes stay in git stash for manual review/restore.
+
+Put update-specific options before any forwarded install/apply options, e.g.:
+  $CLI_NAME update --fast --profile linux-desktop
 USAGE
 }
 
@@ -108,6 +132,28 @@ load_tools_support() {
 }
 
 run_install() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --skip-apply)
+        DOTFILES_SKIP_APPLY=1
+        shift
+        ;;
+      --skip-tools|--fast)
+        DOTFILES_SKIP_TOOLS=1
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  export DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS
+
   if _dotfiles_is_truthy "$DOTFILES_SKIP_APPLY"; then
     dotfiles_info "Skipping apply step (--skip-apply)"
   else
@@ -130,6 +176,134 @@ run_install() {
 
   load_tools_support
   dotfiles_install_default_tools
+}
+
+dotfiles_update_checkout() {
+  update_remote=$1
+  update_branch=$2
+  update_autostash=$3
+
+  before_head=$(git -C "$REPO_ROOT" rev-parse --verify HEAD 2>/dev/null || true)
+  status=$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all 2>/dev/null || true)
+  stash_name=
+  backup_branch=
+
+  if [ -n "$status" ]; then
+    if ! _dotfiles_is_truthy "$update_autostash"; then
+      dotfiles_die "checkout has local changes; commit or stash them first, or re-run without --no-stash"
+    fi
+
+    stash_name="dotfiles-update-$(date -u +%Y%m%dT%H%M%SZ)"
+    if _dotfiles_is_truthy "$DOTFILES_DRY_RUN"; then
+      dotfiles_info "Would stash local checkout changes as $stash_name"
+    else
+      dotfiles_info "Stashing local checkout changes as $stash_name"
+    fi
+    dotfiles_run git -C "$REPO_ROOT" stash push --include-untracked --message "$stash_name"
+  fi
+
+  dotfiles_run git -C "$REPO_ROOT" fetch --prune "$update_remote" "$update_branch"
+
+  if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/$update_branch"; then
+    local_branch_ref="refs/heads/$update_branch"
+    local_only_commits=$(git -C "$REPO_ROOT" rev-list --count "$update_remote/$update_branch..$local_branch_ref" 2>/dev/null || printf '%s' 0)
+    if [ "${local_only_commits:-0}" -gt 0 ]; then
+      backup_branch="dotfiles-update-backup-$update_branch-$(date -u +%Y%m%dT%H%M%SZ)"
+      dotfiles_info "Preserving local $update_branch commits in $backup_branch before syncing to $update_remote/$update_branch"
+      dotfiles_run git -C "$REPO_ROOT" branch "$backup_branch" "$local_branch_ref"
+    fi
+  fi
+
+  current_branch=$(git -C "$REPO_ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  if [ "$current_branch" != "$update_branch" ]; then
+    if [ -n "$current_branch" ]; then
+      dotfiles_info "Switching checkout from $current_branch to $update_branch"
+    else
+      dotfiles_info "Checking out $update_branch"
+    fi
+
+    if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/$update_branch"; then
+      dotfiles_run git -C "$REPO_ROOT" checkout "$update_branch"
+    else
+      dotfiles_run git -C "$REPO_ROOT" checkout -B "$update_branch" "$update_remote/$update_branch"
+    fi
+  fi
+
+  dotfiles_run git -C "$REPO_ROOT" reset --hard "$update_remote/$update_branch"
+
+  if _dotfiles_is_truthy "$DOTFILES_DRY_RUN"; then
+    return 0
+  fi
+
+  after_head=$(git -C "$REPO_ROOT" rev-parse --verify HEAD 2>/dev/null || true)
+  if [ -n "$before_head" ] && [ -n "$after_head" ] && [ "$before_head" != "$after_head" ]; then
+    dotfiles_info "Updated checkout to $update_remote/$update_branch"
+    git -C "$REPO_ROOT" log --oneline --no-decorate "$before_head..$after_head" || true
+  else
+    dotfiles_info "Checkout already matches $update_remote/$update_branch"
+  fi
+
+  if [ -n "$stash_name" ]; then
+    dotfiles_warn "Local checkout changes were stashed as $stash_name"
+  fi
+  if [ -n "$backup_branch" ]; then
+    dotfiles_warn "Local $update_branch commits were preserved in $backup_branch before syncing"
+  fi
+}
+
+run_update() {
+  update_remote=${DOTFILES_UPDATE_REMOTE:-origin}
+  update_branch=${DOTFILES_UPDATE_BRANCH:-${DOTFILES_BRANCH:-main}}
+  update_autostash=1
+  update_fast=0
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --remote)
+        [ "$#" -ge 2 ] || dotfiles_die "--remote requires a value"
+        update_remote=$2
+        shift 2
+        ;;
+      --branch)
+        [ "$#" -ge 2 ] || dotfiles_die "--branch requires a value"
+        update_branch=$2
+        shift 2
+        ;;
+      --fast)
+        update_fast=1
+        shift
+        ;;
+      --no-stash)
+        update_autostash=0
+        shift
+        ;;
+      --help|-h)
+        update_usage
+        return 0
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  if _dotfiles_is_truthy "$update_fast" && ! _dotfiles_is_truthy "$DOTFILES_SKIP_TOOLS"; then
+    DOTFILES_SKIP_TOOLS=1
+    export DOTFILES_SKIP_TOOLS
+    dotfiles_info "Fast update requested; skipping default agent tools"
+  fi
+
+  if _dotfiles_is_truthy "$DOTFILES_CHECKOUT_ALREADY_UPDATED"; then
+    dotfiles_info "Skipping git sync; checkout already refreshed by bootstrap"
+  else
+    dotfiles_update_checkout "$update_remote" "$update_branch" "$update_autostash"
+  fi
+
+  run_install "$@"
 }
 
 case "$command" in
@@ -155,12 +329,7 @@ case "$command" in
     ;;
   update)
     dotfiles_has_cmd git || dotfiles_die "git is required for update"
-    if _dotfiles_is_truthy "$DOTFILES_CHECKOUT_ALREADY_UPDATED"; then
-      dotfiles_info "Skipping git pull; checkout already refreshed by bootstrap"
-    else
-      dotfiles_run git -C "$REPO_ROOT" pull --ff-only
-    fi
-    run_install "$@"
+    run_update "$@"
     ;;
   packages)
     load_packages_support
