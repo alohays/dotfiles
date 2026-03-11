@@ -3,6 +3,12 @@
 
 command -v fzf >/dev/null 2>&1 || return 0
 
+case "${TERM:-}" in
+    ''|dumb) return 0 ;;
+esac
+
+[ -t 0 ] || [ -t 1 ] || return 0
+
 # Use fd for file/directory search if available; fall back to rg; fall back to find.
 if command -v fd >/dev/null 2>&1; then
     export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
@@ -27,7 +33,11 @@ if [ -n "${ZSH_VERSION:-}" ]; then
     fi
 elif [ -n "${BASH_VERSION:-}" ]; then
     if fzf --bash >/dev/null 2>&1; then
-        eval "$(fzf --bash)"
+        _dotfiles_fzf_bash=$(fzf --bash 2>/dev/null || true)
+        if [ -n "${_dotfiles_fzf_bash:-}" ]; then
+            eval "$_dotfiles_fzf_bash" || true
+        fi
+        unset _dotfiles_fzf_bash
     elif [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/fzf.bash" ]; then
         . "${XDG_CONFIG_HOME:-$HOME/.config}/fzf/fzf.bash"
     elif [ -f "$HOME/.fzf.bash" ]; then

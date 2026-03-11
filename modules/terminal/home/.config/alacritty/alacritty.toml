@@ -1,0 +1,58 @@
+[terminal.shell]
+program = "/bin/zsh"
+args = ["-l"]
+
+[window]
+padding = { x = 4, y = 4 }
+dynamic_padding = false
+option_as_alt = "OnlyLeft"
+
+[scrolling]
+history = 100000
+
+[font]
+size = 16.0
+
+[font.normal]
+family = "JetBrainsMono Nerd Font Mono"
+style = "Regular"
+
+[font.bold]
+family = "JetBrainsMono Nerd Font Mono"
+style = "SemiBold"
+
+[font.italic]
+family = "JetBrainsMono Nerd Font Mono"
+style = "Italic"
+
+[font.bold_italic]
+family = "JetBrainsMono Nerd Font Mono"
+style = "SemiBold Italic"
+
+[font.offset]
+x = -1
+y = -2
+
+[colors.primary]
+background = "#111111"
+foreground = "#e6e6e6"
+
+[colors.normal]
+black = "#111111"
+red = "#c4746e"
+green = "#8a9a7b"
+yellow = "#c4b28a"
+blue = "#7e9cd8"
+magenta = "#957fb8"
+cyan = "#6a9589"
+white = "#c8c093"
+
+[colors.bright]
+black = "#727169"
+red = "#e46876"
+green = "#87a987"
+yellow = "#e6c384"
+blue = "#7fb4ca"
+magenta = "#938aa9"
+cyan = "#7aa89f"
+white = "#dcd7ba"

@@ -1,0 +1,11 @@
+{
+  "name": "linux-desktop-rich",
+  "description": "Linux desktop profile with optional terminal and prompt polish on top of the standard-first visual stack.",
+  "extends": [
+    "linux-desktop"
+  ],
+  "modules": [
+    "terminal",
+    "prompt"
+  ]
+}
