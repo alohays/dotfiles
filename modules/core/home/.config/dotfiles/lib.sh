@@ -12,6 +12,13 @@ dotfiles_source_optional() {
     . "$1"
 }
 
+dotfiles_source_optional_relaxed() {
+    [ -n "${1:-}" ] || return 0
+    [ -r "$1" ] || return 0
+    # shellcheck disable=SC1090
+    . "$1" || return 0
+}
+
 dotfiles_source_dir() {
     dir=${1:-}
     [ -n "$dir" ] || return 0

@@ -5,4 +5,4 @@
 : "${DOTFILES_HOME:=$HOME/.dotfiles}"
 
 dotfiles_source_optional "$DOTFILES_HOME/zsh/zsh.d/login.zsh"
-dotfiles_source_optional "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zprofile.sh"
+dotfiles_source_optional_relaxed "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zprofile.sh"

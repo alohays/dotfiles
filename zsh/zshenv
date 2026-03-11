@@ -7,4 +7,4 @@
 # Keep zshenv minimal; it is sourced for every zsh invocation.
 dotfiles_source_optional "$HOME/.config/dotfiles/env.sh"
 dotfiles_source_optional "$DOTFILES_HOME/zsh/zsh.d/envs.zsh"
-dotfiles_source_optional "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zshenv.sh"
+dotfiles_source_optional_relaxed "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zshenv.sh"
