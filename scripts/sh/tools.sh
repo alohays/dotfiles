@@ -30,7 +30,8 @@ Supported tools:
   rtk                        Install RTK using Homebrew when available or the
                              official install script otherwise
   zsh-plugins                Clone zsh-autosuggestions and zsh-syntax-highlighting
-  tmux-resurrect             Clone tmux-resurrect for session persistence
+                             as opt-in interactive extras
+  tmux-resurrect             Clone tmux-resurrect for opt-in session persistence
 USAGE
 }
 
@@ -157,7 +158,7 @@ dotfiles_install_tool() {
 }
 
 dotfiles_install_default_tools() {
-  default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk,zsh-plugins,tmux-resurrect}
+  default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk}
   [ -n "$default_tools" ] || return 0
 
   for tool in $(printf '%s' "$default_tools" | tr ',' ' '); do

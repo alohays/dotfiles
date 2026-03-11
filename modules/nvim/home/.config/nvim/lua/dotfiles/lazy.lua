@@ -106,14 +106,7 @@ lazy.setup({
         follow_current_file = { enabled = true },
         filtered_items = { force_visible_in_empty_folder = true },
         use_libuv_file_watcher = true,
-        window = {
-          width = 30,
-          mappings = {
-            ['I'] = 'toggle_hidden',
-            ['z'] = 'none',
-            ['/'] = 'fuzzy_finder',
-          },
-        },
+        window = { width = 30 },
       },
       default_component_configs = {
         indent = {
@@ -153,8 +146,6 @@ lazy.setup({
       'nvim-tree/nvim-web-devicons',
     },
     opts = function()
-      local actions = require('telescope.actions')
-
       return {
         defaults = {
           prompt_prefix = '  ',
@@ -167,11 +158,6 @@ lazy.setup({
           },
           path_display = { 'truncate' },
           winblend = 6,
-          mappings = {
-            i = {
-              ['<Esc>'] = actions.close,
-            },
-          },
         },
         pickers = {
           find_files = {

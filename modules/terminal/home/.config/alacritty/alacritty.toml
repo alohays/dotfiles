@@ -5,7 +5,6 @@ args = ["-l"]
 [window]
 padding = { x = 4, y = 4 }
 dynamic_padding = false
-option_as_alt = "OnlyLeft"
 
 [scrolling]
 history = 100000

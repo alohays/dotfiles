@@ -17,7 +17,5 @@ setopt INTERACTIVE_COMMENTS
 autoload -Uz compinit
 compinit -d "$XDG_CACHE_HOME/zsh/zcompdump"
 
-# Case-insensitive and partial-word completion.
-zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
-zstyle ':completion:*' menu select
-zstyle ':completion:*' list-colors ''
+# Keep completion behavior close to stock zsh defaults.
+# Users who want matcher/menu tweaks can opt in via local.zsh.zsh.
