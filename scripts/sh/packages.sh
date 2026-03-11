@@ -14,6 +14,7 @@ agents|brew|ripgrep
 agents|brew|fd
 agents|brew|jq
 agents|brew|fzf
+agents|brew|git-delta
 default|apt|git
 default|apt|zsh
 default|apt|tmux
@@ -21,6 +22,7 @@ agents|apt|ripgrep
 agents|apt|fd-find
 agents|apt|jq
 agents|apt|fzf
+agents|apt|git-delta
 MANIFEST
 }
 

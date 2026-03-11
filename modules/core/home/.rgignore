@@ -1,0 +1,17 @@
+# Global ripgrep ignore patterns.
+.git/
+node_modules/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.next/
+.tox/
+*.min.js
+*.min.css

@@ -7,6 +7,9 @@ DOTFILES_TOOLS_SH_LOADED=1
 
 RTK_INSTALL_URL=${RTK_INSTALL_URL:-https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh}
 
+ZSH_PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
+TMUX_PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/plugins"
+
 dotfiles_tools_usage() {
   cat <<USAGE
 Usage: bin/dotfiles tools <subcommand> [options]
@@ -20,22 +23,24 @@ Subcommands:
   plan <tool>                Print how a tool would be installed
 
 Options for install/plan:
-  --method <auto|brew|official>   Select install method (default: auto)
-  --help, -h                      Show this help
+  --method <auto|brew|official|git>   Select install method (default: auto)
+  --help, -h                          Show this help
 
 Supported tools:
   rtk                        Install RTK using Homebrew when available or the
                              official install script otherwise
+  zsh-plugins                Clone zsh-autosuggestions and zsh-syntax-highlighting
+  tmux-resurrect             Clone tmux-resurrect for session persistence
 USAGE
 }
 
 dotfiles_supported_tools() {
-  printf '%s\n' rtk
+  printf '%s\n' rtk zsh-plugins tmux-resurrect
 }
 
 dotfiles_tool_exists() {
   case "${1:-}" in
-    rtk)
+    rtk|zsh-plugins|tmux-resurrect)
       return 0
       ;;
     *)
@@ -58,6 +63,9 @@ dotfiles_detect_tool_method() {
         printf '%s\n' official
       fi
       ;;
+    zsh-plugins|tmux-resurrect)
+      printf '%s\n' git
+      ;;
     *)
       dotfiles_die "unsupported tool: $tool"
       ;;
@@ -69,7 +77,7 @@ dotfiles_normalize_tool_method() {
     auto|'')
       printf '%s\n' auto
       ;;
-    brew|official)
+    brew|official|git)
       printf '%s\n' "$1"
       ;;
     *)
@@ -88,10 +96,28 @@ dotfiles_tool_install_plan() {
     rtk:official)
       printf '%s\n' "curl -fsSL $RTK_INSTALL_URL | sh"
       ;;
+    zsh-plugins:git)
+      printf '%s\n' "git clone zsh-users/zsh-autosuggestions -> $ZSH_PLUGINS_DIR/zsh-autosuggestions"
+      printf '%s\n' "git clone zsh-users/zsh-syntax-highlighting -> $ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+      ;;
+    tmux-resurrect:git)
+      printf '%s\n' "git clone tmux-plugins/tmux-resurrect -> $TMUX_PLUGINS_DIR/tmux-resurrect"
+      ;;
     *)
       dotfiles_die "no install plan for tool=$tool method=$method"
       ;;
   esac
+}
+
+_dotfiles_git_clone_or_pull() {
+  repo_url=$1
+  dest=$2
+  if [ -d "$dest/.git" ]; then
+    dotfiles_info "Updating $(basename "$dest") ..."
+    dotfiles_run git -C "$dest" pull --ff-only
+  else
+    dotfiles_run git clone --depth 1 "$repo_url" "$dest"
+  fi
 }
 
 dotfiles_install_tool() {
@@ -113,6 +139,17 @@ dotfiles_install_tool() {
       dotfiles_has_cmd curl || dotfiles_die "curl is required for method=official"
       curl -fsSL "$RTK_INSTALL_URL" | sh
       ;;
+    zsh-plugins:git)
+      dotfiles_has_cmd git || dotfiles_die "git is required for zsh-plugins"
+      mkdir -p "$ZSH_PLUGINS_DIR"
+      _dotfiles_git_clone_or_pull https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
+      _dotfiles_git_clone_or_pull https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+      ;;
+    tmux-resurrect:git)
+      dotfiles_has_cmd git || dotfiles_die "git is required for tmux-resurrect"
+      mkdir -p "$TMUX_PLUGINS_DIR"
+      _dotfiles_git_clone_or_pull https://github.com/tmux-plugins/tmux-resurrect.git "$TMUX_PLUGINS_DIR/tmux-resurrect"
+      ;;
     *)
       dotfiles_die "unsupported install request tool=$tool method=$method"
       ;;
@@ -120,7 +157,7 @@ dotfiles_install_tool() {
 }
 
 dotfiles_install_default_tools() {
-  default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk}
+  default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk,zsh-plugins,tmux-resurrect}
   [ -n "$default_tools" ] || return 0
 
   for tool in $(printf '%s' "$default_tools" | tr ',' ' '); do

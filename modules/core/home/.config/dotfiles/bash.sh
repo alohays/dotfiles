@@ -5,9 +5,10 @@
 dotfiles_ensure_dir "$XDG_STATE_HOME/bash"
 
 HISTFILE=$XDG_STATE_HOME/bash/history
-: "${HISTSIZE:=5000}"
-: "${HISTFILESIZE:=10000}"
-export HISTFILE HISTSIZE HISTFILESIZE
+: "${HISTSIZE:=50000}"
+: "${HISTFILESIZE:=100000}"
+HISTCONTROL=ignoreboth:erasedups
+export HISTFILE HISTSIZE HISTFILESIZE HISTCONTROL
 
 shopt -s histappend checkwinsize cmdhist
 

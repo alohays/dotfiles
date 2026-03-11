@@ -3,9 +3,38 @@
     ui = auto
 [core]
     excludesfile = ~/.config/git/ignore
+    pager = "delta 2>/dev/null || less -FRX"
 [fetch]
     prune = true
 [init]
     defaultBranch = main
+[pull]
+    rebase = true
+[rebase]
+    autosquash = true
+    autostash = true
+[rerere]
+    enabled = true
+[diff]
+    algorithm = patience
+    compactionHeuristic = true
+    renames = copies
+[commit]
+    verbose = true
+[branch]
+    sort = -committerdate
+[merge]
+    conflictstyle = diff3
+[interactive]
+    diffFilter = "delta --color-only 2>/dev/null || cat"
+[delta]
+    navigate = true
+    line-numbers = true
+    side-by-side = false
+[alias]
+    graph = log --graph --oneline --decorate --all
+    unstage = reset HEAD --
+    wdiff = diff --word-diff
+    amend = commit --amend --no-edit
 [include]
     path = ~/.config/git/config.local
