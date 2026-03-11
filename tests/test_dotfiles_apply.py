@@ -44,6 +44,15 @@ class DotfilesApplyTests(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
+    def write_module_file(
+        self,
+        repo_root: Path,
+        module_name: str,
+        relative_path: str,
+        content: str,
+    ) -> None:
+        self.write_file(repo_root / "modules" / module_name / "home" / relative_path, content)
+
     def run_cli(self, *args: str, env: dict[str, str] | None = None) -> dict[str, object]:
         completed = subprocess.run(
             [sys.executable, str(SCRIPT_PATH), *args],
@@ -61,20 +70,31 @@ class DotfilesApplyTests(unittest.TestCase):
     def test_profile_resolution_inherits_base_modules(self) -> None:
         manifest = self.script.load_manifest(REPO_ROOT)
         resolved = self.script.resolve_profile(REPO_ROOT, manifest, "linux-desktop")
-        self.assertEqual(resolved["modules"], ["core", "tmux", "visual"])
+        self.assertEqual(resolved["modules"], ["core", "tmux", "nvim", "visual"])
         self.assertEqual(resolved["lineage"], ["base", "linux-desktop"])
 
     def test_profiles_command_lists_shipped_profiles(self) -> None:
         result = self.run_cli("profiles", "--repo-root", str(REPO_ROOT))
         self.assertTrue(result["ok"])
         names = [profile["name"] for profile in result["profiles"]]
-        self.assertEqual(names, ["base", "linux-desktop", "macos-desktop", "ssh-server"])
+        self.assertEqual(
+            names,
+            [
+                "base",
+                "linux-desktop-rich",
+                "linux-desktop",
+                "macos-desktop-rich",
+                "macos-desktop",
+                "ssh-server",
+            ],
+        )
 
     def test_apply_creates_symlinks_and_inventory(self) -> None:
         repo_root = self.make_temp_repo()
         home = self.make_temp_dir()
         self.write_file(repo_root / "modules/core/.zshrc", "export TEST_PROFILE=1\n")
         self.write_file(repo_root / "modules/tmux/.tmux.conf", "set -g status on\n")
+        self.write_file(repo_root / "modules/nvim/.config/nvim/init.lua", "vim.o.number = true\n")
 
         result = self.run_cli(
             "apply",
@@ -89,9 +109,13 @@ class DotfilesApplyTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assert_symlink_to(home / ".zshrc", repo_root / "modules/core/.zshrc")
         self.assert_symlink_to(home / ".tmux.conf", repo_root / "modules/tmux/.tmux.conf")
+        self.assert_symlink_to(home / ".config/nvim/init.lua", repo_root / "modules/nvim/.config/nvim/init.lua")
         inventory = json.loads((home / STATE_PATH).read_text(encoding="utf-8"))
         self.assertEqual(inventory["profile"], "linux-desktop")
-        self.assertEqual([entry["target"] for entry in inventory["entries"]], [".tmux.conf", ".zshrc"])
+        self.assertEqual(
+            [entry["target"] for entry in inventory["entries"]],
+            [".config/nvim/init.lua", ".tmux.conf", ".zshrc"],
+        )
 
     def test_apply_backs_up_existing_target_and_records_metadata(self) -> None:
         repo_root = self.make_temp_repo()
@@ -146,6 +170,7 @@ class DotfilesApplyTests(unittest.TestCase):
         home = self.make_temp_dir()
         self.write_file(repo_root / "modules/core/.zshrc", "export MANAGED=1\n")
         self.write_file(repo_root / "modules/tmux/.tmux.conf", "set -g mouse on\n")
+        self.write_file(repo_root / "modules/nvim/.config/nvim/init.lua", "vim.o.relativenumber = true\n")
 
         self.run_cli(
             "apply",
@@ -169,8 +194,265 @@ class DotfilesApplyTests(unittest.TestCase):
         )
 
         self.assertFalse((home / ".tmux.conf").exists() or (home / ".tmux.conf").is_symlink())
+        self.assertFalse((home / ".config/nvim/init.lua").exists() or (home / ".config/nvim/init.lua").is_symlink())
         inventory = json.loads((home / STATE_PATH).read_text(encoding="utf-8"))
         self.assertEqual([entry["target"] for entry in inventory["entries"]], [".zshrc"])
+
+    def test_desktop_profiles_include_visual_module(self) -> None:
+        manifest = self.script.load_manifest(REPO_ROOT)
+        linux_desktop = self.script.resolve_profile(REPO_ROOT, manifest, "linux-desktop")
+        macos_desktop = self.script.resolve_profile(REPO_ROOT, manifest, "macos-desktop")
+        linux_desktop_rich = self.script.resolve_profile(REPO_ROOT, manifest, "linux-desktop-rich")
+        macos_desktop_rich = self.script.resolve_profile(REPO_ROOT, manifest, "macos-desktop-rich")
+        ssh_server = self.script.resolve_profile(REPO_ROOT, manifest, "ssh-server")
+
+        self.assertEqual(linux_desktop["modules"], ["core", "tmux", "nvim", "visual"])
+        self.assertEqual(macos_desktop["modules"], ["core", "tmux", "nvim", "visual"])
+        self.assertEqual(
+            linux_desktop_rich["modules"],
+            ["core", "tmux", "nvim", "visual", "terminal", "prompt"],
+        )
+        self.assertEqual(
+            macos_desktop_rich["modules"],
+            ["core", "tmux", "nvim", "visual", "terminal", "prompt"],
+        )
+        self.assertEqual(ssh_server["modules"], ["core", "ssh-server", "tmux"])
+
+    def test_apply_links_visual_theme_for_desktop_profile(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".zshrc", "export MANAGED=1\n")
+        self.write_module_file(repo_root, "tmux", ".tmux.conf", "set -g status on\n")
+        self.write_module_file(repo_root, "nvim", ".config/nvim/init.lua", "vim.o.number = true\n")
+        self.write_module_file(
+            repo_root,
+            "visual",
+            ".config/tmux/theme.conf",
+            "set -g status-style fg=colour255,bg=colour235\n",
+        )
+
+        result = self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "linux-desktop",
+        )
+
+        self.assertTrue(result["ok"])
+        self.assert_symlink_to(
+            home / ".config/nvim/init.lua",
+            repo_root / "modules/nvim/home/.config/nvim/init.lua",
+        )
+        self.assert_symlink_to(
+            home / ".config/tmux/theme.conf",
+            repo_root / "modules/visual/home/.config/tmux/theme.conf",
+        )
+        inventory = json.loads((home / STATE_PATH).read_text(encoding="utf-8"))
+        self.assertIn(
+            ".config/nvim/init.lua",
+            [entry["target"] for entry in inventory["entries"]],
+        )
+        self.assertIn(
+            ".config/tmux/theme.conf",
+            [entry["target"] for entry in inventory["entries"]],
+        )
+
+    def test_apply_base_removes_visual_theme_symlink(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".zshrc", "export MANAGED=1\n")
+        self.write_module_file(repo_root, "tmux", ".tmux.conf", "set -g status on\n")
+        self.write_module_file(repo_root, "nvim", ".config/nvim/init.lua", "vim.o.number = true\n")
+        self.write_module_file(
+            repo_root,
+            "visual",
+            ".config/tmux/theme.conf",
+            "set -g status-style fg=colour255,bg=colour235\n",
+        )
+
+        self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "linux-desktop",
+        )
+        self.assertTrue((home / ".config/nvim/init.lua").is_symlink())
+        self.assertTrue((home / ".config/tmux/theme.conf").is_symlink())
+
+        self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "base",
+        )
+
+        self.assertFalse((home / ".config/nvim/init.lua").exists())
+        self.assertFalse((home / ".config/tmux/theme.conf").exists())
+        inventory = json.loads((home / STATE_PATH).read_text(encoding="utf-8"))
+        self.assertNotIn(
+            ".config/nvim/init.lua",
+            [entry["target"] for entry in inventory["entries"]],
+        )
+        self.assertNotIn(
+            ".config/tmux/theme.conf",
+            [entry["target"] for entry in inventory["entries"]],
+        )
+
+    def test_apply_ssh_server_does_not_link_visual_theme(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".zshrc", "export MANAGED=1\n")
+        self.write_module_file(repo_root, "tmux", ".tmux.conf", "set -g status on\n")
+        self.write_module_file(repo_root, "nvim", ".config/nvim/init.lua", "vim.o.number = true\n")
+        self.write_module_file(
+            repo_root,
+            "visual",
+            ".config/tmux/theme.conf",
+            "set -g status-style fg=colour255,bg=colour235\n",
+        )
+
+        result = self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "ssh-server",
+        )
+
+        self.assertTrue(result["ok"])
+        self.assert_symlink_to(home / ".tmux.conf", repo_root / "modules/tmux/home/.tmux.conf")
+        self.assertFalse((home / ".config/nvim/init.lua").exists())
+        self.assertFalse((home / ".config/tmux/theme.conf").exists())
+
+    def test_apply_rich_profile_links_terminal_and_prompt_layers(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".zshrc", "export MANAGED=1\n")
+        self.write_module_file(repo_root, "tmux", ".tmux.conf", "set -g status on\n")
+        self.write_module_file(repo_root, "nvim", ".config/nvim/init.lua", "vim.o.number = true\n")
+        self.write_module_file(repo_root, "visual", ".config/tmux/theme.conf", "set -g status on\n")
+        self.write_module_file(
+            repo_root,
+            "terminal",
+            ".config/wezterm/wezterm.lua",
+            "return { term = 'wezterm' }\n",
+        )
+        self.write_module_file(
+            repo_root,
+            "terminal",
+            ".config/alacritty/alacritty.toml",
+            "[window]\npadding = { x = 1, y = 1 }\n",
+        )
+        self.write_module_file(
+            repo_root,
+            "prompt",
+            ".config/dotfiles/interactive.d/80-prompt.sh",
+            "case $- in *i*) ;; *) return 0 ;; esac\n",
+        )
+
+        result = self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "linux-desktop-rich",
+        )
+
+        self.assertTrue(result["ok"])
+        self.assert_symlink_to(
+            home / ".config/wezterm/wezterm.lua",
+            repo_root / "modules/terminal/home/.config/wezterm/wezterm.lua",
+        )
+        self.assert_symlink_to(
+            home / ".config/alacritty/alacritty.toml",
+            repo_root / "modules/terminal/home/.config/alacritty/alacritty.toml",
+        )
+        self.assert_symlink_to(
+            home / ".config/dotfiles/interactive.d/80-prompt.sh",
+            repo_root / "modules/prompt/home/.config/dotfiles/interactive.d/80-prompt.sh",
+        )
+        inventory = json.loads((home / STATE_PATH).read_text(encoding="utf-8"))
+        self.assertEqual(inventory["profile"], "linux-desktop-rich")
+        self.assertIn(
+            ".config/wezterm/wezterm.lua",
+            [entry["target"] for entry in inventory["entries"]],
+        )
+        self.assertIn(
+            ".config/alacritty/alacritty.toml",
+            [entry["target"] for entry in inventory["entries"]],
+        )
+        self.assertIn(
+            ".config/dotfiles/interactive.d/80-prompt.sh",
+            [entry["target"] for entry in inventory["entries"]],
+        )
+
+    def test_apply_standard_desktop_after_rich_removes_terminal_and_prompt_layers(self) -> None:
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".zshrc", "export MANAGED=1\n")
+        self.write_module_file(repo_root, "tmux", ".tmux.conf", "set -g status on\n")
+        self.write_module_file(repo_root, "nvim", ".config/nvim/init.lua", "vim.o.number = true\n")
+        self.write_module_file(repo_root, "visual", ".config/tmux/theme.conf", "set -g status on\n")
+        self.write_module_file(
+            repo_root,
+            "terminal",
+            ".config/wezterm/wezterm.lua",
+            "return { term = 'wezterm' }\n",
+        )
+        self.write_module_file(
+            repo_root,
+            "terminal",
+            ".config/alacritty/alacritty.toml",
+            "[window]\npadding = { x = 1, y = 1 }\n",
+        )
+        self.write_module_file(
+            repo_root,
+            "prompt",
+            ".config/dotfiles/interactive.d/80-prompt.sh",
+            "case $- in *i*) ;; *) return 0 ;; esac\n",
+        )
+
+        self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "linux-desktop-rich",
+        )
+        self.assertTrue((home / ".config/wezterm/wezterm.lua").is_symlink())
+        self.assertTrue((home / ".config/alacritty/alacritty.toml").is_symlink())
+        self.assertTrue((home / ".config/dotfiles/interactive.d/80-prompt.sh").is_symlink())
+
+        self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "linux-desktop",
+        )
+
+        self.assertFalse((home / ".config/wezterm/wezterm.lua").exists())
+        self.assertFalse((home / ".config/alacritty/alacritty.toml").exists())
+        self.assertFalse((home / ".config/dotfiles/interactive.d/80-prompt.sh").exists())
+        self.assertTrue((home / ".config/nvim/init.lua").is_symlink())
+        self.assertTrue((home / ".config/tmux/theme.conf").is_symlink())
 
 
 if __name__ == "__main__":
