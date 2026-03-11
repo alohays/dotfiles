@@ -1,11 +1,49 @@
 #!/bin/sh
 set -eu
 
-SCRIPT_PATH=$0
+find_invoked_script_path() {
+  case "$1" in
+    */*)
+      printf '%s\n' "$1"
+      ;;
+    *)
+      command -v "$1" 2>/dev/null || printf '%s\n' "$1"
+      ;;
+  esac
+}
+
+resolve_script_path() {
+  current=$1
+  case "$current" in
+    /*) ;;
+    *)
+      current="$(pwd -P)/$current"
+      ;;
+  esac
+
+  while [ -L "$current" ]; do
+    link_target=$(readlink "$current")
+    case "$link_target" in
+      /*)
+        current=$link_target
+        ;;
+      *)
+        current_dir=$(CDPATH= cd -- "$(dirname -- "$current")" && pwd -P)
+        current="$current_dir/$link_target"
+        ;;
+    esac
+  done
+
+  current_dir=$(CDPATH= cd -- "$(dirname -- "$current")" && pwd -P)
+  printf '%s/%s\n' "$current_dir" "${current##*/}"
+}
+
+SCRIPT_PATH=$(find_invoked_script_path "$0")
 CLI_NAME=${DOTFILES_CLI_NAME:-$SCRIPT_PATH}
 REPO_ROOT=${DOTFILES_REPO_ROOT:-}
 if [ -z "$REPO_ROOT" ]; then
-  SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
+  RESOLVED_SCRIPT_PATH=$(resolve_script_path "$SCRIPT_PATH")
+  SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$RESOLVED_SCRIPT_PATH")" && pwd -P)
   REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 fi
 
