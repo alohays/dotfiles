@@ -3,6 +3,10 @@
 [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/lib.sh" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/lib.sh"
 
 dotfiles_apply_base_env() {
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        setopt localoptions nonomatch
+    fi
+
     : "${DOTFILES_HOME:=$HOME/.dotfiles}"
     : "${XDG_CONFIG_HOME:=$HOME/.config}"
     : "${XDG_CACHE_HOME:=$HOME/.cache}"
@@ -34,6 +38,48 @@ dotfiles_apply_base_env() {
     dotfiles_prepend_path "$HOME/.npm-global/bin"
     dotfiles_prepend_path "$HOME/bin"
     dotfiles_prepend_path "$HOME/.local/bin"
+
+    nvm_root=${NVM_DIR:-$HOME/.nvm}
+    nvm_bin=
+    for dir in \
+        "$nvm_root/current/bin" \
+        "$nvm_root/versions/node/"*/bin
+    do
+        [ -d "$dir" ] || continue
+        nvm_bin=$dir
+    done
+    [ -n "$nvm_bin" ] && dotfiles_prepend_path "$nvm_bin"
+
+    fnm_root_candidates="${FNM_DIR:-$HOME/.fnm}:${XDG_DATA_HOME:-$HOME/.local/share}/fnm"
+    fnm_root=
+    while [ -n "$fnm_root_candidates" ]; do
+        case $fnm_root_candidates in
+            *:*)
+                dir=${fnm_root_candidates%%:*}
+                fnm_root_candidates=${fnm_root_candidates#*:}
+                ;;
+            *)
+                dir=$fnm_root_candidates
+                fnm_root_candidates=
+                ;;
+        esac
+        [ -n "$dir" ] || continue
+        [ -d "$dir" ] || continue
+        fnm_root=$dir
+        break
+    done
+    if [ -n "$fnm_root" ]; then
+        fnm_bin=
+        for dir in \
+            "$fnm_root/current/bin" \
+            "$fnm_root/aliases/default/bin" \
+            "$fnm_root/node-versions/"*/installation/bin
+        do
+            [ -d "$dir" ] || continue
+            fnm_bin=$dir
+        done
+        [ -n "$fnm_bin" ] && dotfiles_prepend_path "$fnm_bin"
+    fi
 
     dotfiles_prepend_first_path \
         "$HOME/.mambaforge/condabin" \
@@ -94,4 +140,4 @@ fi
 
 export EDITOR VISUAL PAGER LESS GIT_EDITOR
 
-dotfiles_source_optional "$XDG_CONFIG_HOME/dotfiles/local.env.sh"
+dotfiles_source_optional_relaxed "$XDG_CONFIG_HOME/dotfiles/local.env.sh"

@@ -34,6 +34,9 @@ class InstallQaTests(unittest.TestCase):
     def test_preserve_legacy_zsh_init(self) -> None:
         self.run_qa("preserve-legacy-zsh-init")
 
+    def test_nvm_survives_antidote_overlay(self) -> None:
+        self.run_qa("nvm-survives-antidote-overlay")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -143,11 +143,11 @@ The managed home targets `~/.zshenv`, `~/.zprofile`, and `~/.zshrc` remain under
 
 The managed shell startup now also performs baseline toolchain discovery inspired by older `wookayin/dotfiles` layouts:
 
-- Node managers / shims: `~/.volta/bin`, `~/.asdf/{bin,shims}`, `~/.nodenv/{bin,shims}`, `~/.local/share/mise/shims`, `~/.yarn/bin`
+- Node managers / shims: `~/.volta/bin`, `~/.nvm/current/bin`, `~/.nvm/versions/node/*/bin`, common `fnm` current/default/version bins, `~/.asdf/{bin,shims}`, `~/.nodenv/{bin,shims}`, `~/.local/share/mise/shims`, `~/.yarn/bin`
 - Python managers / shims: `~/.pyenv/{bin,shims}` plus common Miniforge/Miniconda `condabin` locations
 - Interactive compatibility: if only `python3`/`pip3` exist, interactive shells expose `python`/`pip` aliases automatically
 
-Slower manager-specific hooks (for example custom `nvm`/`fnm` setup) can still live in the unmanaged local overlay files when needed.
+Managed startup now discovers common `nvm`/`fnm` install bins directly, and unmanaged local overlays are sourced in relaxed mode so legacy plugin-manager errors do not abort the core shell startup. If you still want manager-specific shell functions or prompts, those can live in the unmanaged local overlay files.
 
 ## Package tiers
 

@@ -488,6 +488,30 @@ actual=$(command -v qa-legacy-node-tool || true)
 EOF_LEGACY_ZSH
 }
 
+assert_nvm_survives_broken_local_zsh_overlay() {
+  home_dir=$1
+  env -i HOME="$home_dir" PATH=/usr/bin:/bin TERM=xterm-256color ZDOTDIR="$home_dir" zsh -f -i <<'EOF_NVM_ZSH'
+set -eu
+PROMPT=
+PS1=
+. "$HOME/.zshenv"
+. "$HOME/.zprofile"
+. "$HOME/.zshrc"
+assert_command() {
+  name=$1
+  expected=$2
+  actual=$(command -v "$name" || true)
+  [ "$actual" = "$expected" ] || {
+    print -u2 "unexpected resolution for $name: $actual != $expected"
+    exit 1
+  }
+}
+assert_command node "$HOME/.nvm/versions/node/v20.18.0/bin/node"
+assert_command npm "$HOME/.nvm/versions/node/v20.18.0/bin/npm"
+assert_command qa-nvm-tool "$HOME/.nvm/versions/node/v20.18.0/bin/qa-nvm-tool"
+EOF_NVM_ZSH
+}
+
 assert_no_shell_wrappers() {
   shell_name=$1
   home_dir=$2
@@ -810,6 +834,31 @@ EOF_ZSHRC
   log 'preserve-legacy-zsh-init scenario passed'
 }
 
+scenario_nvm_survives_antidote_overlay() {
+  root=$(make_scenario_root)
+  home_dir="$root/home"
+  backup_root="$root/backups"
+  mkdir -p "$home_dir" "$backup_root" "$home_dir/.nvm/versions/node/v20.18.0/bin" "$home_dir/.config/dotfiles"
+  source_repo=$(make_source_repo "$root")
+  rtk_installer=$(make_fake_rtk_installer "$root")
+
+  make_fake_command "$home_dir/.nvm/versions/node/v20.18.0/bin/node" node-via-nvm
+  make_fake_command "$home_dir/.nvm/versions/node/v20.18.0/bin/npm" npm-via-nvm
+  make_fake_command "$home_dir/.nvm/versions/node/v20.18.0/bin/qa-nvm-tool" qa-nvm-tool
+
+  cat > "$home_dir/.config/dotfiles/local.zsh.zsh" <<'EOF_ANTIDOTE'
+echo 'antidote is not installed' >&2
+return 1
+EOF_ANTIDOTE
+
+  run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" "$rtk_installer" install --profile macos-desktop
+  assert_nvm_survives_broken_local_zsh_overlay "$home_dir"
+
+  HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" "$home_dir/.dotfiles/bin/dotfiles" apply --profile macos-desktop >/dev/null
+  assert_nvm_survives_broken_local_zsh_overlay "$home_dir"
+  log 'nvm-survives-antidote-overlay scenario passed'
+}
+
 scenario_rich_profile_flows() {
   root=$(make_scenario_root)
   home_dir="$root/home"
@@ -859,6 +908,9 @@ case "${1:-all}" in
   preserve-legacy-zsh-init)
     scenario_preserve_legacy_zsh_init
     ;;
+  nvm-survives-antidote-overlay)
+    scenario_nvm_survives_antidote_overlay
+    ;;
   rich)
     scenario_rich_profile_flows
     ;;
@@ -866,6 +918,7 @@ case "${1:-all}" in
     scenario_end_to_end_flows
     scenario_replace_dirty_checkout
     scenario_preserve_legacy_zsh_init
+    scenario_nvm_survives_antidote_overlay
     scenario_rich_profile_flows
     ;;
   *)

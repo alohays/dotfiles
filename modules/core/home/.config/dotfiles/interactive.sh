@@ -18,4 +18,4 @@ dotfiles_ensure_dir "$XDG_STATE_HOME/less"
 export LESSHISTFILE
 
 dotfiles_source_dir "$XDG_CONFIG_HOME/dotfiles/interactive.d"
-dotfiles_source_optional "$XDG_CONFIG_HOME/dotfiles/local.interactive.sh"
+dotfiles_source_optional_relaxed "$XDG_CONFIG_HOME/dotfiles/local.interactive.sh"
