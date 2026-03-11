@@ -35,6 +35,18 @@ dotfiles_prepend_path() {
     esac
 }
 
+dotfiles_prepend_first_path() {
+    while [ "$#" -gt 0 ]; do
+        dir=$1
+        shift
+        [ -n "$dir" ] || continue
+        [ -d "$dir" ] || continue
+        dotfiles_prepend_path "$dir"
+        return 0
+    done
+    return 0
+}
+
 dotfiles_prepend_prefix_bins() {
     prefixes=${1:-}
     [ -n "$prefixes" ] || return 0

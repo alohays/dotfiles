@@ -92,6 +92,12 @@ setup_command_resolution_fixture() {
   make_fake_command "$fake_brew_secondary/bin/qa-brew-tool" qa-brew-tool-secondary
   make_fake_command "$home_dir/.local/bin/qa-local-tool" qa-local-tool
   make_fake_command "$home_dir/.npm-global/bin/qa-npm-tool" qa-npm-tool
+  make_fake_command "$home_dir/.volta/bin/node" node-via-volta
+  make_fake_command "$home_dir/.volta/bin/npm" npm-via-volta
+  make_fake_command "$home_dir/.pyenv/shims/python3" python3-via-pyenv
+  make_fake_command "$home_dir/.pyenv/shims/pip3" pip3-via-pyenv
+  make_fake_command "$home_dir/.miniforge3/condabin/conda" conda-via-miniforge
+  make_fake_command "$home_dir/.miniforge3/bin/conda" conda-exe-via-miniforge
   mkdir -p "$home_dir/.config/dotfiles"
   cat > "$home_dir/.config/dotfiles/local.env.sh" <<'EOF'
 if [ -n "${DOTFILES_QA_LOCAL_ENV_COUNT_FILE:-}" ]; then
@@ -271,8 +277,16 @@ assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+assert_command node "$HOME/.volta/bin/node"
+assert_command npm "$HOME/.volta/bin/npm"
+assert_command python3 "$HOME/.pyenv/shims/python3"
+assert_command conda "$HOME/.miniforge3/condabin/conda"
 assert_command brew "$EXPECT_BREW"
 assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
+[ "${CONDA_EXE:-}" = "$HOME/.miniforge3/bin/conda" ] || {
+  echo "unexpected CONDA_EXE: ${CONDA_EXE:-}" >&2
+  exit 1
+}
 assert_local_env_once
 EXPECT_BREW="$EXPECT_BREW" EXPECT_BREW_TOOL="$EXPECT_BREW_TOOL" DOTFILES_QA_LOCAL_ENV_COUNT_FILE="$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" bash --noprofile --rcfile "$HOME/.bashrc" -ic '
 set -eu
@@ -300,8 +314,16 @@ assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+assert_command node "$HOME/.volta/bin/node"
+assert_command npm "$HOME/.volta/bin/npm"
+assert_command python3 "$HOME/.pyenv/shims/python3"
+assert_command conda "$HOME/.miniforge3/condabin/conda"
 assert_command brew "$EXPECT_BREW"
 assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
+[ "${CONDA_EXE:-}" = "$HOME/.miniforge3/bin/conda" ] || {
+  echo "unexpected nested CONDA_EXE: ${CONDA_EXE:-}" >&2
+  exit 1
+}
 assert_local_env_once
 '
       actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)
@@ -341,9 +363,17 @@ assert_local_env_once() {
 assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
+assert_command node "$HOME/.volta/bin/node"
+assert_command npm "$HOME/.volta/bin/npm"
+assert_command python3 "$HOME/.pyenv/shims/python3"
+assert_command conda "$HOME/.miniforge3/condabin/conda"
 assert_command brew "$EXPECT_BREW"
 assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+[[ "${CONDA_EXE:-}" == "$HOME/.miniforge3/bin/conda" ]] || {
+  print -u2 "unexpected CONDA_EXE: ${CONDA_EXE:-}"
+  exit 1
+}
 assert_local_env_once
 zsh -f -i <<'EOF_NESTED_ZSH'
 set -eu
@@ -374,9 +404,17 @@ assert_local_env_once() {
 assert_command dotfiles "$HOME/.dotfiles/bin/dotfiles"
 assert_command rtk "$HOME/.local/bin/rtk"
 assert_command qa-local-tool "$HOME/.local/bin/qa-local-tool"
+assert_command node "$HOME/.volta/bin/node"
+assert_command npm "$HOME/.volta/bin/npm"
+assert_command python3 "$HOME/.pyenv/shims/python3"
+assert_command conda "$HOME/.miniforge3/condabin/conda"
 assert_command brew "$EXPECT_BREW"
 assert_command qa-brew-tool "$EXPECT_BREW_TOOL"
 assert_command qa-npm-tool "$HOME/.npm-global/bin/qa-npm-tool"
+[[ "${CONDA_EXE:-}" == "$HOME/.miniforge3/bin/conda" ]] || {
+  print -u2 "unexpected nested CONDA_EXE: ${CONDA_EXE:-}"
+  exit 1
+}
 assert_local_env_once
 EOF_NESTED_ZSH
       actual=$(cat "$DOTFILES_QA_LOCAL_ENV_COUNT_FILE" 2>/dev/null || printf '%s' 0)
