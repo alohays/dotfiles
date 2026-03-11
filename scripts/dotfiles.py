@@ -319,15 +319,72 @@ def cleanup_empty_parents(start: Path, stop_at: Path) -> None:
         current = current.parent
 
 
+def zsh_backup_content_source(
+    home: Path,
+    backups_root: Path,
+    backup_source: Path,
+    target_rel: str,
+    original_kind: str,
+) -> tuple[str, Path] | tuple[None, None]:
+    candidate_paths: list[Path] = []
+
+    if original_kind == "file" and backup_source.is_file():
+        candidate_paths.append(backup_source)
+
+    if original_kind == "symlink" and backup_source.is_symlink():
+        try:
+            raw_link_target = Path(os.readlink(backup_source))
+        except OSError:
+            raw_link_target = None
+
+        if raw_link_target is not None:
+            original_target = home / target_rel
+            if raw_link_target.is_absolute():
+                resolved_link_target = raw_link_target
+            else:
+                resolved_link_target = (original_target.parent / raw_link_target).resolve(strict=False)
+
+            if resolved_link_target.is_file():
+                candidate_paths.append(resolved_link_target)
+
+            dotfiles_home = home / ".dotfiles"
+            try:
+                checkout_relative = resolved_link_target.relative_to(dotfiles_home)
+            except ValueError:
+                checkout_relative = None
+
+            if checkout_relative is not None:
+                for checkout_backup in sorted(backups_root.glob("checkout-*"), reverse=True):
+                    checkout_candidate = checkout_backup / checkout_relative
+                    if checkout_candidate.is_file():
+                        candidate_paths.append(checkout_candidate)
+
+    seen: set[str] = set()
+    for candidate in candidate_paths:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            content = candidate.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if content.strip():
+            return content, candidate
+
+    return None, None
+
+
 def auto_migrate_zsh_backup(
     home: Path,
+    backups_root: Path,
     backup_source: Path,
     target_rel: str,
     original_kind: str,
     notes: list[str],
 ) -> None:
     destination_rel = AUTO_MIGRATED_ZSH_FILES.get(target_rel)
-    if destination_rel is None or original_kind != "file" or not backup_source.is_file():
+    if destination_rel is None:
         return
 
     destination = home / destination_rel
@@ -338,8 +395,14 @@ def auto_migrate_zsh_backup(
         )
         return
 
-    content = backup_source.read_text(encoding="utf-8")
-    if not content.strip():
+    content, _ = zsh_backup_content_source(
+        home=home,
+        backups_root=backups_root,
+        backup_source=backup_source,
+        target_rel=target_rel,
+        original_kind=original_kind,
+    )
+    if not content:
         return
 
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -374,7 +437,7 @@ def restore_zsh_migrations_from_history(home: Path, backups_root: Path, notes: l
                 (
                     entry
                     for entry in entries
-                    if entry.get("target") == target_rel and entry.get("original_kind") == "file"
+                    if entry.get("target") == target_rel
                 ),
                 None,
             )
@@ -387,9 +450,10 @@ def restore_zsh_migrations_from_history(home: Path, backups_root: Path, notes: l
             backup_source = metadata_path.parent / backup_path
             auto_migrate_zsh_backup(
                 home=home,
+                backups_root=backups_root,
                 backup_source=backup_source,
                 target_rel=target_rel,
-                original_kind="file",
+                original_kind=str(matching_entry.get("original_kind", "")),
                 notes=notes,
             )
             break
@@ -453,6 +517,7 @@ def apply_plan(plan: dict[str, Any], dry_run: bool) -> dict[str, Any]:
             )
             auto_migrate_zsh_backup(
                 home=home,
+                backups_root=backups_root,
                 backup_source=backup_destination,
                 target_rel=action["target"],
                 original_kind=original_kind,

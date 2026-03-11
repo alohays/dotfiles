@@ -405,8 +405,34 @@ legacy_file="$HOME/.config/dotfiles/local.zprofile.sh"
   print -u2 "missing auto-migrated local.zprofile.sh"
   exit 1
 }
+legacy_zshenv="$HOME/.config/dotfiles/local.zshenv.sh"
+[[ -f "$legacy_zshenv" ]] || {
+  print -u2 "missing auto-migrated local.zshenv.sh"
+  exit 1
+}
+legacy_zshrc="$HOME/.config/dotfiles/local.zsh.zsh"
+[[ -f "$legacy_zshrc" ]] || {
+  print -u2 "missing auto-migrated local.zsh.zsh"
+  exit 1
+}
 grep -q 'export PATH="$HOME/.volta/bin:$PATH"' "$legacy_file" || {
   print -u2 "legacy PATH export was not preserved in local.zprofile.sh"
+  exit 1
+}
+grep -q 'export DOTFILES_QA_LEGACY_ZSHENV=1' "$legacy_zshenv" || {
+  print -u2 "legacy zshenv content was not preserved"
+  exit 1
+}
+grep -q 'export DOTFILES_QA_LEGACY_ZSHRC=1' "$legacy_zshrc" || {
+  print -u2 "legacy zshrc content was not preserved"
+  exit 1
+}
+[[ "${DOTFILES_QA_LEGACY_ZSHENV:-0}" == "1" ]] || {
+  print -u2 "legacy zshenv overlay did not load"
+  exit 1
+}
+[[ "${DOTFILES_QA_LEGACY_ZSHRC:-0}" == "1" ]] || {
+  print -u2 "legacy zshrc overlay did not load"
   exit 1
 }
 actual=$(command -v qa-legacy-node-tool || true)
@@ -708,23 +734,32 @@ scenario_replace_dirty_checkout() {
 scenario_preserve_legacy_zsh_init() {
   root=$(make_scenario_root)
   home_dir="$root/home"
-  backup_root="$root/backups"
-  mkdir -p "$home_dir" "$backup_root" "$home_dir/.volta/bin"
+  backup_root="$home_dir/.local/state/alohays-dotfiles/backups"
+  mkdir -p "$home_dir" "$backup_root" "$home_dir/.volta/bin" "$home_dir/.dotfiles/zsh"
   source_repo=$(make_source_repo "$root")
   rtk_installer=$(make_fake_rtk_installer "$root")
 
   make_fake_command "$home_dir/.volta/bin/qa-legacy-node-tool" qa-legacy-node-tool
-  cat > "$home_dir/.zprofile" <<'EOF_ZPROFILE'
+  cat > "$home_dir/.dotfiles/zsh/zprofile" <<'EOF_ZPROFILE'
 export PATH="$HOME/.volta/bin:$PATH"
 EOF_ZPROFILE
-  : > "$home_dir/.zshenv"
-  : > "$home_dir/.zshrc"
+  cat > "$home_dir/.dotfiles/zsh/zshenv" <<'EOF_ZSHENV'
+export DOTFILES_QA_LEGACY_ZSHENV=1
+EOF_ZSHENV
+  cat > "$home_dir/.dotfiles/zsh/zshrc" <<'EOF_ZSHRC'
+export DOTFILES_QA_LEGACY_ZSHRC=1
+EOF_ZSHRC
+  ln -s "$home_dir/.dotfiles/zsh/zprofile" "$home_dir/.zprofile"
+  ln -s "$home_dir/.dotfiles/zsh/zshenv" "$home_dir/.zshenv"
+  ln -s "$home_dir/.dotfiles/zsh/zshrc" "$home_dir/.zshrc"
 
   run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" "$rtk_installer" install --profile macos-desktop
 
   assert_symlink_target "$home_dir/.zprofile" "$home_dir/.dotfiles/modules/core/home/.zprofile"
   assert_legacy_zsh_init_preserved "$home_dir"
   rm -f "$home_dir/.config/dotfiles/local.zprofile.sh"
+  rm -f "$home_dir/.config/dotfiles/local.zshenv.sh"
+  rm -f "$home_dir/.config/dotfiles/local.zsh.zsh"
   HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" "$home_dir/.dotfiles/bin/dotfiles" apply --profile macos-desktop >/dev/null
   assert_legacy_zsh_init_preserved "$home_dir"
   log 'preserve-legacy-zsh-init scenario passed'
