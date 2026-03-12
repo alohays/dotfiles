@@ -37,6 +37,12 @@ class InstallQaTests(unittest.TestCase):
     def test_nvm_survives_antidote_overlay(self) -> None:
         self.run_qa("nvm-survives-antidote-overlay")
 
+    def test_nvm_alias_default(self) -> None:
+        self.run_qa("nvm-alias-default")
+
+    def test_fnm_alias_default(self) -> None:
+        self.run_qa("fnm-alias-default")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

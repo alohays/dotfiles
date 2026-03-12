@@ -860,6 +860,95 @@ EOF_ANTIDOTE
   log 'nvm-survives-antidote-overlay scenario passed'
 }
 
+scenario_nvm_alias_default() {
+  root=$(make_scenario_root)
+  home_dir="$root/home"
+  backup_root="$root/backups"
+  mkdir -p "$home_dir" "$backup_root"
+  source_repo=$(make_source_repo "$root")
+  rtk_installer=$(make_fake_rtk_installer "$root")
+
+  # Create multiple nvm versions.
+  for ver in v20.18.0 v22.14.0 v22.5.1; do
+    mkdir -p "$home_dir/.nvm/versions/node/$ver/bin"
+    make_fake_command "$home_dir/.nvm/versions/node/$ver/bin/node" "node-$ver"
+    make_fake_command "$home_dir/.nvm/versions/node/$ver/bin/npm" "npm-$ver"
+  done
+
+  # Set default alias to lts/iron -> v20.18.0.
+  mkdir -p "$home_dir/.nvm/alias/lts"
+  printf '%s\n' 'lts/iron' > "$home_dir/.nvm/alias/default"
+  printf '%s\n' 'v20.18.0' > "$home_dir/.nvm/alias/lts/iron"
+
+  run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" "$rtk_installer" install --profile macos-desktop
+
+  env -i HOME="$home_dir" PATH=/usr/bin:/bin TERM=xterm-256color ZDOTDIR="$home_dir" zsh -f -i <<'EOF_NVM_ALIAS'
+set -eu
+PROMPT=
+PS1=
+. "$HOME/.zshenv"
+. "$HOME/.zprofile"
+. "$HOME/.zshrc"
+assert_command() {
+  name=$1
+  expected=$2
+  actual=$(command -v "$name" || true)
+  [ "$actual" = "$expected" ] || {
+    print -u2 "unexpected resolution for $name: $actual != $expected"
+    exit 1
+  }
+}
+# Should resolve to v20.18.0 via alias chain, not v22.5.1 (glob last).
+assert_command node "$HOME/.nvm/versions/node/v20.18.0/bin/node"
+assert_command npm "$HOME/.nvm/versions/node/v20.18.0/bin/npm"
+EOF_NVM_ALIAS
+  log 'nvm-alias-default scenario passed'
+}
+
+scenario_fnm_alias_default() {
+  root=$(make_scenario_root)
+  home_dir="$root/home"
+  backup_root="$root/backups"
+  mkdir -p "$home_dir" "$backup_root"
+  source_repo=$(make_source_repo "$root")
+  rtk_installer=$(make_fake_rtk_installer "$root")
+
+  # Create multiple fnm versions.
+  for ver in v18.20.0 v20.18.0 v22.5.1; do
+    mkdir -p "$home_dir/.fnm/node-versions/$ver/installation/bin"
+    make_fake_command "$home_dir/.fnm/node-versions/$ver/installation/bin/node" "node-$ver"
+    make_fake_command "$home_dir/.fnm/node-versions/$ver/installation/bin/npm" "npm-$ver"
+  done
+
+  # Set default alias to v18.20.0 via symlink (fnm uses symlinks for aliases).
+  mkdir -p "$home_dir/.fnm/aliases"
+  ln -s "$home_dir/.fnm/node-versions/v18.20.0/installation" "$home_dir/.fnm/aliases/default"
+
+  run_bootstrap_pipe "$home_dir" "$backup_root" "$source_repo" "$rtk_installer" install --profile macos-desktop
+
+  env -i HOME="$home_dir" PATH=/usr/bin:/bin TERM=xterm-256color ZDOTDIR="$home_dir" zsh -f -i <<'EOF_FNM_ALIAS'
+set -eu
+PROMPT=
+PS1=
+. "$HOME/.zshenv"
+. "$HOME/.zprofile"
+. "$HOME/.zshrc"
+assert_command() {
+  name=$1
+  expected=$2
+  actual=$(command -v "$name" || true)
+  [ "$actual" = "$expected" ] || {
+    print -u2 "unexpected resolution for $name: $actual != $expected"
+    exit 1
+  }
+}
+# Should resolve to v18.20.0 via aliases/default, not v22.5.1 (glob last).
+assert_command node "$HOME/.fnm/aliases/default/bin/node"
+assert_command npm "$HOME/.fnm/aliases/default/bin/npm"
+EOF_FNM_ALIAS
+  log 'fnm-alias-default scenario passed'
+}
+
 scenario_rich_profile_flows() {
   root=$(make_scenario_root)
   home_dir="$root/home"
@@ -912,6 +1001,12 @@ case "${1:-all}" in
   nvm-survives-antidote-overlay)
     scenario_nvm_survives_antidote_overlay
     ;;
+  nvm-alias-default)
+    scenario_nvm_alias_default
+    ;;
+  fnm-alias-default)
+    scenario_fnm_alias_default
+    ;;
   rich)
     scenario_rich_profile_flows
     ;;
@@ -920,6 +1015,8 @@ case "${1:-all}" in
     scenario_replace_dirty_checkout
     scenario_preserve_legacy_zsh_init
     scenario_nvm_survives_antidote_overlay
+    scenario_nvm_alias_default
+    scenario_fnm_alias_default
     scenario_rich_profile_flows
     ;;
   *)
