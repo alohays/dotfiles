@@ -772,6 +772,65 @@ class SanitizeMigratedZshContentTests(unittest.TestCase):
         result = self.sanitize(content)
         self.assertNotIn("fast-theme", result)
 
+    def test_strips_multiline_etc_zshrc_if_block(self) -> None:
+        content = (
+            "# before\n"
+            "if [ -f /etc/zshrc ]; then\n"
+            "  source /etc/zshrc\n"
+            "fi\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("/etc/zshrc", result)
+        self.assertNotIn("\nfi\n", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_strips_multiline_etc_zsh_zshrc_if_block(self) -> None:
+        content = (
+            "if [ -f /etc/zsh/zshrc ]; then\n"
+            "  source /etc/zsh/zshrc\n"
+            "fi\n"
+            "export KEEP=1\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("/etc/zsh/zshrc", result)
+        self.assertNotIn("\nfi\n", result)
+        self.assertIn("export KEEP=1", result)
+
+    def test_strips_function_with_inner_brace_group(self) -> None:
+        content = (
+            "# before\n"
+            "function _antidote_compile() {\n"
+            "    local bundles\n"
+            "    {\n"
+            '        echo "inner brace group"\n'
+            "    }\n"
+            "    return 0\n"
+            "}\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("_antidote_compile", result)
+        self.assertNotIn("inner brace group", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_preserves_comments_containing_stripped_keywords(self) -> None:
+        content = (
+            "# I used to have: unsetopt GLOBAL_RCS\n"
+            '# Old: export ANTIDOTE_HOME="$HOME/.antidote"\n'
+            "# antidote bundle was removed\n"
+            "# fast-theme was here before\n"
+            "export KEEP_ME=1\n"
+        )
+        result = self.sanitize(content)
+        self.assertIn("unsetopt GLOBAL_RCS", result)
+        self.assertIn("ANTIDOTE_HOME", result)
+        self.assertIn("antidote bundle", result)
+        self.assertIn("fast-theme", result)
+        self.assertIn("export KEEP_ME=1", result)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

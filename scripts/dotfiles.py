@@ -381,17 +381,17 @@ def zsh_backup_content_source(
 # ---------------------------------------------------------------------------
 
 _MIGRATE_LINE_STRIP_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"unsetopt\s+GLOBAL_RCS"),
+    re.compile(r"^\s*unsetopt\s+GLOBAL_RCS"),
     re.compile(r"^\s*source\s+.*antidote.*\.zsh"),
     re.compile(r"^\s*source\s+.*\.zpreztorc"),
     re.compile(r"^\s*source\s+.*zgen/init\.zsh"),
     re.compile(r"^\s*source\s+.*zinit"),
-    re.compile(r"ANTIDOTE_HOME\s*="),
-    re.compile(r"ANTIDOTE_BUNDLE\s*="),
+    re.compile(r"^\s*(export\s+)?ANTIDOTE_HOME\s*="),
+    re.compile(r"^\s*(export\s+)?ANTIDOTE_BUNDLE\s*="),
     re.compile(r"""zstyle\s+['"]?:antidote:"""),
     re.compile(r"""zstyle\s+['"]?:prezto:"""),
-    re.compile(r"antidote\s+(bundle|load|update)"),
-    re.compile(r"fast-theme\s+"),
+    re.compile(r"^\s*antidote\s+(bundle|load|update)"),
+    re.compile(r"^\s*fast-theme\s+"),
     re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zshrc"),
     re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc"),
     re.compile(r"^\s*source\s+/etc/zshrc"),
@@ -406,6 +406,8 @@ _MIGRATE_BLOCK_START_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\s*if\s+type\s+antidote"), "fi"),
     (re.compile(r"^\s*function\s+antidote-"), "}"),
     (re.compile(r"^\s*function\s+_antidote_"), "}"),
+    (re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zshrc\b.*;\s*then\s*$"), "fi"),
+    (re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc\b.*;\s*then\s*$"), "fi"),
 ]
 
 
@@ -435,7 +437,7 @@ def sanitize_migrated_zsh_content(content: str) -> str:
                             break
                     if re.match(r"^\s*if\b", lines[j]) and end_keyword == "fi":
                         depth += 1
-                    if re.match(r"^\s*function\b", lines[j]) and end_keyword == "}":
+                    if end_keyword == "}" and re.search(r"\{\s*$", lines[j]):
                         depth += 1
                     j += 1
                 i = j
