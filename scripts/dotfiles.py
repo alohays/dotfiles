@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import platform
+import re
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -375,6 +376,101 @@ def zsh_backup_content_source(
     return None, None
 
 
+# ---------------------------------------------------------------------------
+# Sanitize migrated zsh content: strip known-problematic patterns
+# ---------------------------------------------------------------------------
+
+_MIGRATE_LINE_STRIP_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"unsetopt\s+GLOBAL_RCS"),
+    re.compile(r"^\s*source\s+.*antidote.*\.zsh"),
+    re.compile(r"^\s*source\s+.*\.zpreztorc"),
+    re.compile(r"^\s*source\s+.*zgen/init\.zsh"),
+    re.compile(r"^\s*source\s+.*zinit"),
+    re.compile(r"ANTIDOTE_HOME\s*="),
+    re.compile(r"ANTIDOTE_BUNDLE\s*="),
+    re.compile(r"""zstyle\s+['"]?:antidote:"""),
+    re.compile(r"""zstyle\s+['"]?:prezto:"""),
+    re.compile(r"antidote\s+(bundle|load|update)"),
+    re.compile(r"fast-theme\s+"),
+    re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zshrc"),
+    re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc"),
+    re.compile(r"^\s*source\s+/etc/zshrc"),
+    re.compile(r"^\s*source\s+/etc/zsh/zshrc"),
+]
+
+_MIGRATE_BLOCK_START_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"^\s*if\s+\[[\[\s].*antidote"), "fi"),
+    (re.compile(r"^\s*if\s+\[[\[\s].*ANTIDOTE"), "fi"),
+    (re.compile(r"^\s*if\s+!?\s*grep.*antidote", re.IGNORECASE), "fi"),
+    (re.compile(r"^\s*if\s+!?\s*grep.*prezto", re.IGNORECASE), "fi"),
+    (re.compile(r"^\s*if\s+type\s+antidote"), "fi"),
+    (re.compile(r"^\s*function\s+antidote-"), "}"),
+    (re.compile(r"^\s*function\s+_antidote_"), "}"),
+]
+
+
+def sanitize_migrated_zsh_content(content: str) -> str:
+    """Strip known-obsolete patterns (antidote, prezto, GLOBAL_RCS) from migrated zsh content."""
+    lines = content.splitlines(keepends=True)
+    result: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Check block-level patterns first.
+        block_matched = False
+        for start_pat, end_keyword in _MIGRATE_BLOCK_START_PATTERNS:
+            if start_pat.search(line):
+                if end_keyword == "}":
+                    end_re = re.compile(r"^\s*\}")
+                else:
+                    end_re = re.compile(r"^\s*" + re.escape(end_keyword) + r"\b")
+                j = i + 1
+                depth = 1
+                while j < len(lines):
+                    if end_re.search(lines[j]):
+                        depth -= 1
+                        if depth <= 0:
+                            j += 1
+                            break
+                    if re.match(r"^\s*if\b", lines[j]) and end_keyword == "fi":
+                        depth += 1
+                    if re.match(r"^\s*function\b", lines[j]) and end_keyword == "}":
+                        depth += 1
+                    j += 1
+                i = j
+                block_matched = True
+                break
+
+        if block_matched:
+            continue
+
+        # Check line-level patterns.
+        line_matched = False
+        for pat in _MIGRATE_LINE_STRIP_PATTERNS:
+            if pat.search(line):
+                line_matched = True
+                break
+
+        if not line_matched:
+            result.append(line)
+        i += 1
+
+    # Collapse runs of consecutive blank lines (keep at most 1).
+    cleaned: list[str] = []
+    blank_count = 0
+    for line in result:
+        if line.strip() == "":
+            blank_count += 1
+            if blank_count <= 1:
+                cleaned.append(line)
+        else:
+            blank_count = 0
+            cleaned.append(line)
+
+    return "".join(cleaned)
+
+
 def auto_migrate_zsh_backup(
     home: Path,
     backups_root: Path,
@@ -405,10 +501,13 @@ def auto_migrate_zsh_backup(
     if not content:
         return
 
+    content = sanitize_migrated_zsh_content(content)
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     header = (
         f"# Auto-migrated from backed-up {target_rel} on {utc_now()}.\n"
-        "# Review and trim this file after confirming your legacy commands still work.\n\n"
+        "# Known-obsolete patterns (antidote, prezto, GLOBAL_RCS) were stripped.\n"
+        "# Review and trim this file -- the framework handles PATH, plugins, and completion.\n\n"
     )
     if not content.endswith("\n"):
         content += "\n"
