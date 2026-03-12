@@ -46,8 +46,9 @@ class StandardFirstTests(unittest.TestCase):
         plugin.parent.mkdir(parents=True, exist_ok=True)
         plugin.write_text("set -g @resurrect_loaded on\nset -g prefix C-a\n", encoding="utf-8")
 
-        socket_path = home / ".tmp" / "standard-first.sock"
-        socket_path.parent.mkdir(parents=True, exist_ok=True)
+        socket_dir = Path(tempfile.mkdtemp(prefix="tmux-"))
+        self.addCleanup(lambda: shutil.rmtree(socket_dir, ignore_errors=True))
+        socket_path = socket_dir / "s.sock"
         env = os.environ.copy()
         env["HOME"] = str(home)
 

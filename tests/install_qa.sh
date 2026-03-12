@@ -26,7 +26,9 @@ track_cleanup_dir() {
 }
 
 make_temp_dir() {
-  mktemp -d "${TMPDIR:-/tmp}/alohays-dotfiles-qa.XXXXXX"
+  dir=$(mktemp -d "${TMPDIR:-/tmp}/alohays-dotfiles-qa.XXXXXX")
+  # Canonicalize to avoid /var vs /private/var mismatch on macOS.
+  cd "$dir" && pwd -P
 }
 
 make_scenario_root() {

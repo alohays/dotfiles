@@ -340,11 +340,11 @@ def zsh_backup_content_source(
         if raw_link_target is not None:
             original_target = home / target_rel
             if raw_link_target.is_absolute():
-                resolved_link_target = raw_link_target
+                resolved_link_target = raw_link_target.resolve(strict=False)
             else:
                 resolved_link_target = (original_target.parent / raw_link_target).resolve(strict=False)
 
-            dotfiles_home = home / ".dotfiles"
+            dotfiles_home = (home / ".dotfiles").resolve(strict=False)
             try:
                 checkout_relative = resolved_link_target.relative_to(dotfiles_home)
             except ValueError:

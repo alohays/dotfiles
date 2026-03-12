@@ -12,7 +12,7 @@ DOTFILES_BIN = REPO_ROOT / "bin" / "dotfiles"
 
 class DotfilesBinTests(unittest.TestCase):
     def make_temp_dir(self) -> Path:
-        return Path(tempfile.mkdtemp(prefix="dotfiles-bin-test-"))
+        return Path(tempfile.mkdtemp(prefix="dotfiles-bin-test-")).resolve()
 
     def test_symlinked_launcher_resolves_repo_root(self) -> None:
         home = self.make_temp_dir()
