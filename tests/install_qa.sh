@@ -648,10 +648,9 @@ assert_rich_prompt_loaded() {
 
 assert_tmux_prefix_default() {
   home_dir=$1
-  socket_name="dotfiles-qa-$$"
-  socket_path="$home_dir/.tmp/$socket_name.sock"
-  mkdir -p "$home_dir/.tmp"
-  chmod 700 "$home_dir/.tmp"
+  socket_dir=$(mktemp -d "${TMPDIR:-/tmp}/tmux.XXXXXX")
+  track_cleanup_dir "$socket_dir"
+  socket_path="$socket_dir/s.sock"
   if ! output=$(tmux -S "$socket_path" -f "$home_dir/.tmux.conf" start-server \; show-options -g prefix 2>/dev/null); then
     log "skipping tmux prefix assertion because tmux sockets are unavailable in this environment"
     return 0
@@ -686,7 +685,7 @@ scenario_end_to_end_flows() {
   root=$(make_scenario_root)
   home_dir="$root/home"
   backup_root="$root/backups"
-  mkdir -p "$home_dir" "$backup_root" "$home_dir/.tmp"
+  mkdir -p "$home_dir" "$backup_root"
   source_repo=$(make_source_repo "$root")
   rtk_installer=$(make_fake_rtk_installer "$root")
   fake_brew_prefix=$(setup_command_resolution_fixture "$root" "$home_dir")
@@ -865,7 +864,7 @@ scenario_rich_profile_flows() {
   root=$(make_scenario_root)
   home_dir="$root/home"
   backup_root="$root/backups"
-  mkdir -p "$home_dir" "$backup_root" "$home_dir/.tmp"
+  mkdir -p "$home_dir" "$backup_root"
   source_repo=$(make_source_repo "$root")
   rtk_installer=$(make_fake_rtk_installer "$root")
 
