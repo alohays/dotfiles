@@ -648,5 +648,189 @@ class DotfilesApplyTests(unittest.TestCase):
         self.assertTrue((home / ".config/tmux/theme.conf").is_symlink())
 
 
+class SanitizeMigratedZshContentTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.script = load_script_module()
+
+    def sanitize(self, content: str) -> str:
+        return self.script.sanitize_migrated_zsh_content(content)
+
+    def test_strips_antidote_existence_check_block(self) -> None:
+        content = (
+            "# before\n"
+            'if [[ ! -s "${ZDOTDIR:-$HOME}/.zsh/antidote/antidote.zsh" ]]; then\n'
+            '  echo "antidote is not installed"\n'
+            "  return\n"
+            "fi\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("antidote is not installed", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_strips_global_rcs(self) -> None:
+        content = "export FOO=1\nunsetopt GLOBAL_RCS\nexport BAR=2\n"
+        result = self.sanitize(content)
+        self.assertNotIn("GLOBAL_RCS", result)
+        self.assertIn("export FOO=1", result)
+        self.assertIn("export BAR=2", result)
+
+    def test_strips_antidote_source_line(self) -> None:
+        content = 'source "${ZDOTDIR:-$HOME}/.zsh/antidote/antidote.zsh"\n'
+        result = self.sanitize(content)
+        self.assertNotIn("antidote", result)
+
+    def test_strips_prezto_source(self) -> None:
+        content = 'source "${ZDOTDIR:-$HOME}/.zpreztorc"\n'
+        result = self.sanitize(content)
+        self.assertNotIn("zpreztorc", result)
+
+    def test_strips_antidote_function_block(self) -> None:
+        content = (
+            "# before\n"
+            "function antidote-load() {\n"
+            '    echo "disabled"\n'
+            "    return 1;\n"
+            "}\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("antidote-load", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_strips_antidote_config_lines(self) -> None:
+        content = (
+            'export ANTIDOTE_HOME="$HOME/.zsh/antidote-plugins"\n'
+            'export ANTIDOTE_BUNDLE="$HOME/.zsh/antidote.bundled.zsh"\n'
+            "zstyle ':antidote:bundle' use-friendly-names on\n"
+            "export KEEP_ME=1\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("ANTIDOTE_HOME", result)
+        self.assertNotIn("ANTIDOTE_BUNDLE", result)
+        self.assertNotIn(":antidote:", result)
+        self.assertIn("export KEEP_ME=1", result)
+
+    def test_strips_etc_zshrc_source(self) -> None:
+        content = "if [ -f /etc/zshrc ]; then source /etc/zshrc; fi\n"
+        result = self.sanitize(content)
+        self.assertNotIn("/etc/zshrc", result)
+
+    def test_strips_if_type_antidote_block(self) -> None:
+        content = (
+            "if type antidote >/dev/null 2>&1; then\n"
+            '  source $(antidote-path "junegunn/fzf-git.sh")/fzf-git.sh\n'
+            "else\n"
+            '  echo "fallback"\n'
+            "fi\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("antidote-path", result)
+        self.assertIn("# after", result)
+
+    def test_preserves_user_specific_content(self) -> None:
+        content = (
+            'export NVM_DIR="$HOME/.nvm"\n'
+            'if [[ -s "$NVM_DIR/nvm.sh" ]]; then\n'
+            '  source "$NVM_DIR/nvm.sh"\n'
+            "fi\n"
+            'export BUN_INSTALL="$HOME/.bun"\n'
+            'eval "$(pyenv init - zsh)"\n'
+        )
+        result = self.sanitize(content)
+        self.assertIn("NVM_DIR", result)
+        self.assertIn("BUN_INSTALL", result)
+        self.assertIn("pyenv init", result)
+
+    def test_collapses_excessive_blank_lines(self) -> None:
+        content = "a\n\n\n\n\nb\n"
+        result = self.sanitize(content)
+        self.assertNotIn("\n\n\n", result)
+        self.assertIn("a\n", result)
+        self.assertIn("b\n", result)
+
+    def test_strips_nested_antidote_if_block(self) -> None:
+        content = (
+            'if [[ ! -s "$ANTIDOTE_BUNDLE" ]]; then\n'
+            "  if [ ! $? -eq 0 ]; then\n"
+            '    echo "error"\n'
+            "  fi\n"
+            "  _antidote_compile_bundles\n"
+            "fi\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("_antidote_compile_bundles", result)
+        self.assertIn("# after", result)
+
+    def test_strips_fast_theme_line(self) -> None:
+        content = 'fast-theme "$HOME/.dotfiles/config/f-sy-h/wook.ini"\n'
+        result = self.sanitize(content)
+        self.assertNotIn("fast-theme", result)
+
+    def test_strips_multiline_etc_zshrc_if_block(self) -> None:
+        content = (
+            "# before\n"
+            "if [ -f /etc/zshrc ]; then\n"
+            "  source /etc/zshrc\n"
+            "fi\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("/etc/zshrc", result)
+        self.assertNotIn("\nfi\n", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_strips_multiline_etc_zsh_zshrc_if_block(self) -> None:
+        content = (
+            "if [ -f /etc/zsh/zshrc ]; then\n"
+            "  source /etc/zsh/zshrc\n"
+            "fi\n"
+            "export KEEP=1\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("/etc/zsh/zshrc", result)
+        self.assertNotIn("\nfi\n", result)
+        self.assertIn("export KEEP=1", result)
+
+    def test_strips_function_with_inner_brace_group(self) -> None:
+        content = (
+            "# before\n"
+            "function _antidote_compile() {\n"
+            "    local bundles\n"
+            "    {\n"
+            '        echo "inner brace group"\n'
+            "    }\n"
+            "    return 0\n"
+            "}\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("_antidote_compile", result)
+        self.assertNotIn("inner brace group", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_preserves_comments_containing_stripped_keywords(self) -> None:
+        content = (
+            "# I used to have: unsetopt GLOBAL_RCS\n"
+            '# Old: export ANTIDOTE_HOME="$HOME/.antidote"\n'
+            "# antidote bundle was removed\n"
+            "# fast-theme was here before\n"
+            "export KEEP_ME=1\n"
+        )
+        result = self.sanitize(content)
+        self.assertIn("unsetopt GLOBAL_RCS", result)
+        self.assertIn("ANTIDOTE_HOME", result)
+        self.assertIn("antidote bundle", result)
+        self.assertIn("fast-theme", result)
+        self.assertIn("export KEEP_ME=1", result)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
