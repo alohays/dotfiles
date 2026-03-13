@@ -41,39 +41,43 @@ dotfiles_apply_base_env() {
 
     nvm_root=${NVM_DIR:-$HOME/.nvm}
     nvm_bin=
-    # Resolve nvm default alias to a specific version directory.
-    nvm_alias=
-    if [ -r "$nvm_root/alias/default" ]; then
-        nvm_alias=$(cat "$nvm_root/alias/default")
-    fi
-    nvm_hops=0
-    while [ -n "$nvm_alias" ] && [ "$nvm_hops" -lt 5 ]; do
-        case $nvm_alias in
-            v[0-9]*) break ;;
-            lts/*)
-                _lts=${nvm_alias#lts/}
-                if [ -r "$nvm_root/alias/lts/$_lts" ]; then
-                    nvm_alias=$(cat "$nvm_root/alias/lts/$_lts")
-                else break; fi ;;
-            node | stable) nvm_alias= ;;
-            *)
-                if [ -r "$nvm_root/alias/$nvm_alias" ]; then
-                    nvm_alias=$(cat "$nvm_root/alias/$nvm_alias")
-                else break; fi ;;
-        esac
-        nvm_hops=$((nvm_hops + 1))
-    done
-    case ${nvm_alias:-} in
-        v[0-9]*)
-            [ -d "$nvm_root/versions/node/$nvm_alias/bin" ] &&
-                nvm_bin="$nvm_root/versions/node/$nvm_alias/bin"
-            ;;
-    esac
-    if [ -z "$nvm_bin" ]; then
-        for dir in "$nvm_root/versions/node/"*/bin; do
-            [ -d "$dir" ] || continue
-            nvm_bin=$dir
+    if [ -d "$nvm_root/current/bin" ]; then
+        nvm_bin="$nvm_root/current/bin"
+    else
+        # Resolve nvm default alias to a specific version directory.
+        nvm_alias=
+        if [ -r "$nvm_root/alias/default" ]; then
+            nvm_alias=$(cat "$nvm_root/alias/default")
+        fi
+        nvm_hops=0
+        while [ -n "$nvm_alias" ] && [ "$nvm_hops" -lt 5 ]; do
+            case $nvm_alias in
+                v[0-9]*) break ;;
+                lts/*)
+                    _lts=${nvm_alias#lts/}
+                    if [ -r "$nvm_root/alias/lts/$_lts" ]; then
+                        nvm_alias=$(cat "$nvm_root/alias/lts/$_lts")
+                    else break; fi ;;
+                node | stable) nvm_alias= ;;
+                *)
+                    if [ -r "$nvm_root/alias/$nvm_alias" ]; then
+                        nvm_alias=$(cat "$nvm_root/alias/$nvm_alias")
+                    else break; fi ;;
+            esac
+            nvm_hops=$((nvm_hops + 1))
         done
+        case ${nvm_alias:-} in
+            v[0-9]*)
+                [ -d "$nvm_root/versions/node/$nvm_alias/bin" ] &&
+                    nvm_bin="$nvm_root/versions/node/$nvm_alias/bin"
+                ;;
+        esac
+        if [ -z "$nvm_bin" ]; then
+            for dir in "$nvm_root/versions/node/"*/bin; do
+                [ -d "$dir" ] || continue
+                nvm_bin=$dir
+            done
+        fi
     fi
     [ -n "$nvm_bin" ] && dotfiles_prepend_path "$nvm_bin"
 

@@ -508,9 +508,9 @@ assert_command() {
     exit 1
   }
 }
-assert_command node "$HOME/.nvm/versions/node/v20.18.0/bin/node"
-assert_command npm "$HOME/.nvm/versions/node/v20.18.0/bin/npm"
-assert_command qa-nvm-tool "$HOME/.nvm/versions/node/v20.18.0/bin/qa-nvm-tool"
+assert_command node "$HOME/.nvm/current/bin/node"
+assert_command npm "$HOME/.nvm/current/bin/npm"
+assert_command qa-nvm-tool "$HOME/.nvm/current/bin/qa-nvm-tool"
 EOF_NVM_ZSH
 }
 
@@ -839,13 +839,22 @@ scenario_nvm_survives_antidote_overlay() {
   root=$(make_scenario_root)
   home_dir="$root/home"
   backup_root="$root/backups"
-  mkdir -p "$home_dir" "$backup_root" "$home_dir/.nvm/versions/node/v20.18.0/bin" "$home_dir/.config/dotfiles"
+  mkdir -p "$home_dir" "$backup_root" "$home_dir/.config/dotfiles"
   source_repo=$(make_source_repo "$root")
   rtk_installer=$(make_fake_rtk_installer "$root")
 
+  # Create two nvm versions so the glob fallback alone would pick v22.5.1.
+  for ver in v20.18.0 v22.5.1; do
+    mkdir -p "$home_dir/.nvm/versions/node/$ver/bin"
+  done
   make_fake_command "$home_dir/.nvm/versions/node/v20.18.0/bin/node" node-via-nvm
   make_fake_command "$home_dir/.nvm/versions/node/v20.18.0/bin/npm" npm-via-nvm
   make_fake_command "$home_dir/.nvm/versions/node/v20.18.0/bin/qa-nvm-tool" qa-nvm-tool
+  make_fake_command "$home_dir/.nvm/versions/node/v22.5.1/bin/node" node-wrong
+  make_fake_command "$home_dir/.nvm/versions/node/v22.5.1/bin/npm" npm-wrong
+
+  # Simulate `nvm use v20.18.0` by creating the current symlink.
+  ln -sfn "$home_dir/.nvm/versions/node/v20.18.0" "$home_dir/.nvm/current"
 
   cat > "$home_dir/.config/dotfiles/local.zsh.zsh" <<'EOF_ANTIDOTE'
 echo 'antidote is not installed' >&2
