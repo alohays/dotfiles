@@ -8,34 +8,53 @@ segment_wrap() {
   printf '#[fg=%s,bg=colour235,nobold]#[fg=colour255,bg=%s]%s %s#[default]' "$color" "$color" "$icon" "$text"
 }
 
+_gradient_color() {
+  pct=$1
+  if [ "$pct" -gt 80 ]; then
+    printf '%s' 'colour196'
+  elif [ "$pct" -gt 50 ]; then
+    printf '%s' 'colour220'
+  else
+    printf '%s' 'colour76'
+  fi
+}
+
 cpu_segment() {
   case $(uname -s) in
     Darwin)
       command -v top >/dev/null 2>&1 || return 0
-      usage=$(top -l 2 -n 0 | awk '/^CPU usage:/ { sub(/%/ ,"", $3); sub(/%/, "", $5); value=$3+$5 } END { if (value != "") printf "%d%%", value }')
+      usage=$(top -l 2 -n 0 | awk '/^CPU usage:/ { sub(/%/ ,"", $3); sub(/%/, "", $5); value=$3+$5 } END { if (value != "") printf "%d", value }')
       ;;
     Linux)
-      usage=$(awk '{ print $1 }' /proc/loadavg 2>/dev/null || true)
-      [ -n "$usage" ] && usage="load $usage"
+      usage=$(awk '{ printf "%d", $1 * 100 / '"$(nproc 2>/dev/null || printf 1)"' }' /proc/loadavg 2>/dev/null || true)
       ;;
     *) usage= ;;
   esac
-  segment_wrap colour160 '󰻠' "$usage"
+  [ -n "$usage" ] || return 0
+  color=$(_gradient_color "$usage")
+  segment_wrap "$color" '󰻠' "${usage}%"
 }
 
 ram_segment() {
+  pct=0
   case $(uname -s) in
     Darwin)
       command -v vm_stat >/dev/null 2>&1 || return 0
-      used=$(vm_stat | awk '/Pages active|Pages wired down/ {gsub("\\.", "", $3); pages += $3} END { if (pages) printf "%.1fG", pages * 4096 / 1024 / 1024 / 1024 }')
+      eval "$(vm_stat | awk '/Pages active|Pages wired down|Pages free|Pages inactive/ {gsub("\\.", "", $NF); k=tolower($2); sub(/:/, "", k); v[k]+=$NF} END {
+        total=v["active"]+v["wired"]+v["free"]+v["inactive"]
+        used_val=v["active"]+v["wired"]
+        if (total>0) printf "pct=%d used_display=%.1fG", used_val*100/total, used_val*4096/1024/1024/1024
+      }')"
       ;;
     Linux)
       command -v free >/dev/null 2>&1 || return 0
-      used=$(free -m | awk '/^Mem:/ { printf "%.1fG", ($3+$5)/1024 }')
+      eval "$(free -m | awk '/^Mem:/ { if ($2>0) printf "pct=%d used_display=%.1fG", ($3+$5)*100/$2, ($3+$5)/1024 }')"
       ;;
-    *) used= ;;
+    *) return 0 ;;
   esac
-  segment_wrap colour94 '󰍛' "$used"
+  [ -n "${used_display:-}" ] || return 0
+  color=$(_gradient_color "$pct")
+  segment_wrap "$color" '󰍛' "$used_display"
 }
 
 case "${1:-}" in

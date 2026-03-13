@@ -32,16 +32,20 @@ Supported tools:
   zsh-plugins                Clone zsh-autosuggestions and zsh-syntax-highlighting
                              as opt-in interactive extras
   tmux-resurrect             Clone tmux-resurrect for opt-in session persistence
+  powerlevel10k              Clone Powerlevel10k zsh prompt theme
+  fast-syntax-highlighting   Clone fast-syntax-highlighting (F-Sy-H) for richer
+                             syntax coloring
+  fzf-git                    Clone fzf-git.sh for git-aware fzf bindings
 USAGE
 }
 
 dotfiles_supported_tools() {
-  printf '%s\n' rtk zsh-plugins tmux-resurrect
+  printf '%s\n' rtk zsh-plugins tmux-resurrect powerlevel10k fast-syntax-highlighting fzf-git
 }
 
 dotfiles_tool_exists() {
   case "${1:-}" in
-    rtk|zsh-plugins|tmux-resurrect)
+    rtk|zsh-plugins|tmux-resurrect|powerlevel10k|fast-syntax-highlighting|fzf-git)
       return 0
       ;;
     *)
@@ -64,7 +68,7 @@ dotfiles_detect_tool_method() {
         printf '%s\n' official
       fi
       ;;
-    zsh-plugins|tmux-resurrect)
+    zsh-plugins|tmux-resurrect|powerlevel10k|fast-syntax-highlighting|fzf-git)
       printf '%s\n' git
       ;;
     *)
@@ -103,6 +107,15 @@ dotfiles_tool_install_plan() {
       ;;
     tmux-resurrect:git)
       printf '%s\n' "git clone tmux-plugins/tmux-resurrect -> $TMUX_PLUGINS_DIR/tmux-resurrect"
+      ;;
+    powerlevel10k:git)
+      printf '%s\n' "git clone romkatv/powerlevel10k -> $ZSH_PLUGINS_DIR/powerlevel10k"
+      ;;
+    fast-syntax-highlighting:git)
+      printf '%s\n' "git clone zdharma-continuum/fast-syntax-highlighting -> $ZSH_PLUGINS_DIR/fast-syntax-highlighting"
+      ;;
+    fzf-git:git)
+      printf '%s\n' "git clone junegunn/fzf-git.sh -> $ZSH_PLUGINS_DIR/fzf-git.sh"
       ;;
     *)
       dotfiles_die "no install plan for tool=$tool method=$method"
@@ -150,6 +163,21 @@ dotfiles_install_tool() {
       dotfiles_has_cmd git || dotfiles_die "git is required for tmux-resurrect"
       mkdir -p "$TMUX_PLUGINS_DIR"
       _dotfiles_git_clone_or_pull https://github.com/tmux-plugins/tmux-resurrect.git "$TMUX_PLUGINS_DIR/tmux-resurrect"
+      ;;
+    powerlevel10k:git)
+      dotfiles_has_cmd git || dotfiles_die "git is required for powerlevel10k"
+      mkdir -p "$ZSH_PLUGINS_DIR"
+      _dotfiles_git_clone_or_pull https://github.com/romkatv/powerlevel10k.git "$ZSH_PLUGINS_DIR/powerlevel10k"
+      ;;
+    fast-syntax-highlighting:git)
+      dotfiles_has_cmd git || dotfiles_die "git is required for fast-syntax-highlighting"
+      mkdir -p "$ZSH_PLUGINS_DIR"
+      _dotfiles_git_clone_or_pull https://github.com/zdharma-continuum/fast-syntax-highlighting.git "$ZSH_PLUGINS_DIR/fast-syntax-highlighting"
+      ;;
+    fzf-git:git)
+      dotfiles_has_cmd git || dotfiles_die "git is required for fzf-git"
+      mkdir -p "$ZSH_PLUGINS_DIR"
+      _dotfiles_git_clone_or_pull https://github.com/junegunn/fzf-git.sh.git "$ZSH_PLUGINS_DIR/fzf-git.sh"
       ;;
     *)
       dotfiles_die "unsupported install request tool=$tool method=$method"

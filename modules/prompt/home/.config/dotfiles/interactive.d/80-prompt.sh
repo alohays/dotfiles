@@ -15,6 +15,16 @@ case "${TERM:-}" in
 esac
 
 if [ -n "${ZSH_VERSION:-}" ]; then
+  # --- P10k path ---
+  _p10k_theme="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins/powerlevel10k/powerlevel10k.zsh-theme"
+  if [ -r "$_p10k_theme" ]; then
+    [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/p10k.zsh" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/p10k.zsh"
+    . "$_p10k_theme"
+    unset _p10k_theme
+    return 0
+  fi
+  unset _p10k_theme
+  # --- Fallback: simple prompt ---
   autoload -Uz colors vcs_info add-zsh-hook
   colors
   zstyle ':vcs_info:git:*' formats ' %b'

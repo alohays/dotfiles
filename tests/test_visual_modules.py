@@ -216,5 +216,38 @@ class VisualModulesTests(unittest.TestCase):
         self.assertIn("%F{magenta}❯%f", prompt)
 
 
+    @unittest.skipUnless(shutil.which("zsh"), "zsh is required")
+    def test_prompt_module_falls_back_when_p10k_absent(self) -> None:
+        home = self.make_temp_home()
+        completed = self.run_shell(
+            [
+                "zsh",
+                "-f",
+                "-i",
+                "-c",
+                (
+                    f"PROMPT='base> '; . '{PROMPT_SCRIPT}'; "
+                    "print -r -- \"$PROMPT\""
+                ),
+            ],
+            self.shell_env(home),
+        )
+
+        prompt = completed.stdout.strip()
+        self.assertIn("%F{cyan}%n%f", prompt)
+        self.assertIn("%F{magenta}❯%f", prompt)
+
+    def test_completion_module_only_in_rich_profile(self) -> None:
+        home_base = self.make_temp_home()
+        self.apply_profile(home_base, "base")
+        completion_path = home_base / ".config" / "dotfiles" / "interactive.d" / "81-completion.zsh"
+        self.assertFalse(completion_path.exists())
+
+        home_rich = self.make_temp_home()
+        self.apply_profile(home_rich, "linux-desktop-rich")
+        completion_path_rich = home_rich / ".config" / "dotfiles" / "interactive.d" / "81-completion.zsh"
+        self.assertTrue(completion_path_rich.exists())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

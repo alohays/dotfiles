@@ -220,12 +220,12 @@ A stricter QA suite lives in `tests/install_qa.sh` and `tests/test_install_qa.py
 ## Visual scope
 
 The base config stays standard-first, but the desktop layer is now richer:
-- `tmux`: safe terminal capability defaults + stock-keymap tmux baseline
-- `nvim`: a bounded Neovim UI layer for desktop profiles without default key remaps
+- `tmux`: safe terminal capability defaults + stock-keymap tmux baseline with color-gradient CPU/RAM status
+- `nvim`: ~28-plugin Neovim UI layer for desktop profiles (treesitter, LSP, completion, notifications) without default key remaps
 - `visual`: tmux theme and monitored status presentation
-- `terminal` + `prompt`: richer opt-in polish through the `*-desktop-rich` profiles without keyboard-semantic remaps
+- `terminal` + `prompt`: richer opt-in polish through the `*-desktop-rich` profiles — Powerlevel10k prompt, FZF shell bindings, fast-syntax-highlighting, colorized CLI aliases (eza, bat) — without keyboard-semantic remaps
 
-See [`docs/visual.md`](docs/visual.md) for the layering model and activation guidance.
+See [`docs/visual.md`](docs/visual.md) for the layering model, plugin list, and activation guidance.
 
 ## Publishing
 
