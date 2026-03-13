@@ -5,7 +5,7 @@ return {
     opts = {
       current_line_blame = false,
       signs = {
-        add = { text = '█' },
+        add = { text = '▎' },
         change = { text = '▎' },
         delete = { text = '' },
         topdelete = { text = '' },

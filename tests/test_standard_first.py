@@ -15,6 +15,7 @@ NVIM_INIT = REPO_ROOT / "modules" / "nvim" / "home" / ".config" / "nvim" / "init
 NVIM_LAZY = REPO_ROOT / "modules" / "nvim" / "home" / ".config" / "nvim" / "lua" / "dotfiles" / "lazy.lua"
 NVIM_README = REPO_ROOT / "modules" / "nvim" / "README.md"
 NVIM_KEYMAPS = REPO_ROOT / "modules" / "nvim" / "home" / ".config" / "nvim" / "lua" / "dotfiles" / "keymaps.lua"
+NVIM_PLUGINS_DIR = REPO_ROOT / "modules" / "nvim" / "home" / ".config" / "nvim" / "lua" / "dotfiles" / "plugins"
 WEZTERM_CONFIG = REPO_ROOT / "modules" / "terminal" / "home" / ".config" / "wezterm" / "wezterm.lua"
 ALACRITTY_CONFIG = REPO_ROOT / "modules" / "terminal" / "home" / ".config" / "alacritty" / "alacritty.toml"
 TOOLS_SH = REPO_ROOT / "scripts" / "sh" / "tools.sh"
@@ -107,6 +108,13 @@ class StandardFirstTests(unittest.TestCase):
         self.assertNotIn("require('dotfiles.keymaps')", init_text)
         self.assertFalse(NVIM_KEYMAPS.exists())
         self.assertNotIn("mappings =", lazy_text)
+        for plugin_file in NVIM_PLUGINS_DIR.glob("*.lua"):
+            plugin_text = plugin_file.read_text(encoding="utf-8")
+            self.assertNotIn(
+                "mappings =",
+                plugin_text,
+                f"{plugin_file.name} contains 'mappings ='",
+            )
         self.assertNotIn("<leader>", readme_text)
 
     def test_terminal_configs_do_not_remap_keyboard_semantics(self) -> None:
@@ -150,6 +158,9 @@ class StandardFirstTests(unittest.TestCase):
         )
         self.assertFalse(
             (home / ".config" / "dotfiles" / "interactive.d" / "81-completion.zsh").exists()
+        )
+        self.assertFalse(
+            (home / ".config" / "dotfiles" / "interactive.d" / "82-rich-plugins.zsh").exists()
         )
         self.assertFalse(
             (home / ".config" / "dotfiles" / "interactive.d" / "83-rich-fzf.sh").exists()

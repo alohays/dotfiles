@@ -8,7 +8,7 @@ Opt-in Neovim UI layer for desktop profiles with ~28 plugins for rich visual edi
 - Lualine statusline + navic breadcrumb winbar
 - Gitsigns gutter markers + diffview for git diffs
 - Telescope fuzzy pickers for files, grep, buffers, and help tags
-- nvim-treesitter for syntax highlighting and indentation (26 languages)
+- nvim-treesitter for syntax highlighting and indentation (21 languages)
 - indent-blankline for visual indent guides
 - nvim-colorizer for inline color preview
 - todo-comments for highlighted TODO/FIXME/HACK markers

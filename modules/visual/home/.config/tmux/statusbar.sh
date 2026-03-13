@@ -26,7 +26,7 @@ cpu_segment() {
       usage=$(top -l 2 -n 0 | awk '/^CPU usage:/ { sub(/%/ ,"", $3); sub(/%/, "", $5); value=$3+$5 } END { if (value != "") printf "%d", value }')
       ;;
     Linux)
-      usage=$(awk '{ printf "%d", $1 * 100 / '"$(nproc 2>/dev/null || printf 1)"' }' /proc/loadavg 2>/dev/null || true)
+      usage=$(awk '{ v = $1 * 100 / '"$(nproc 2>/dev/null || printf 1)"'; printf "%d", (v > 100 ? 100 : v) }' /proc/loadavg 2>/dev/null || true)
       ;;
     *) usage= ;;
   esac

@@ -28,7 +28,6 @@ opt.fillchars = {
 }
 
 opt.pumheight = 12
-opt.conceallevel = 2
 opt.list = true
 opt.listchars = {
   tab = '» ',

@@ -42,11 +42,15 @@ return {
     'stevearc/dressing.nvim',
     lazy = true,
     init = function()
+      local orig_select = vim.ui.select
+      local orig_input = vim.ui.input
       vim.ui.select = function(...)
+        vim.ui.select = orig_select
         require('lazy').load({ plugins = { 'dressing.nvim' } })
         return vim.ui.select(...)
       end
       vim.ui.input = function(...)
+        vim.ui.input = orig_input
         require('lazy').load({ plugins = { 'dressing.nvim' } })
         return vim.ui.input(...)
       end

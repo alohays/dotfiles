@@ -15,7 +15,7 @@
 
   autoload -Uz is-at-least && is-at-least 5.1 || return
 
-  # Prompt style: two lines, connection between left and right
+  # Prompt style: single line
   typeset -g POWERLEVEL9K_MODE=nerdfont-v3
   typeset -g POWERLEVEL9K_ICON_PADDING=moderate
 
@@ -45,10 +45,8 @@
   typeset -g POWERLEVEL9K_{LEFT,RIGHT}_SUBSEGMENT_SEPARATOR=' '
   typeset -g POWERLEVEL9K_{LEFT,RIGHT}_SEGMENT_SEPARATOR=
 
-  # Two-line prompt
+  # Single-line prompt
   typeset -g POWERLEVEL9K_PROMPT_ON_NEWLINE=false
-  typeset -g POWERLEVEL9K_MULTILINE_FIRST_PROMPT_PREFIX=
-  typeset -g POWERLEVEL9K_MULTILINE_LAST_PROMPT_PREFIX=
 
   # Transient prompt
   typeset -g POWERLEVEL9K_TRANSIENT_PROMPT=same-dir
@@ -91,7 +89,7 @@
 
   typeset -g POWERLEVEL9K_VCS_{STAGED,UNSTAGED,UNTRACKED,CONFLICTED,COMMITS_AHEAD,COMMITS_BEHIND}_MAX_NUM=-1
   typeset -g POWERLEVEL9K_VCS_VISUAL_IDENTIFIER_EXPANSION=
-  typeset -g POWERLEVEL9K_VCS_BACKENDS=(vcs)
+  typeset -g POWERLEVEL9K_VCS_BACKENDS=(git)
 
   # Gitstatus symbols
   typeset -g POWERLEVEL9K_VCS_PREFIX='on '

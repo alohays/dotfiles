@@ -66,7 +66,7 @@ dotfiles tools install powerlevel10k
 ```
 
 P10k is configured via `~/.config/dotfiles/p10k.zsh` with:
-- Two-line prompt with transient prompt support
+- Single-line prompt with transient prompt support
 - `❯` prompt character (green on success, red on failure)
 - Left: os_icon, dir, vcs (git status)
 - Right: status, execution time (>3s), background jobs, virtualenv, pyenv, node, kubecontext, time
@@ -127,7 +127,7 @@ Rich profiles ship ~28 neovim plugins for wookayin-level visual richness. All pl
 | Colorscheme | kanagawa (dragon theme) |
 | Git | gitsigns, diffview |
 | UI | lualine (+ navic breadcrumbs), neo-tree, telescope |
-| Treesitter | nvim-treesitter (26 languages, auto-install) |
+| Treesitter | nvim-treesitter (21 languages, auto-install) |
 | Editor | indent-blankline, nvim-colorizer, todo-comments, which-key |
 | Markdown | render-markdown |
 | Notifications | nvim-notify, noice, dressing, fidget |
