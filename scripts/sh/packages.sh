@@ -25,6 +25,12 @@ agents|apt|fd-find
 agents|apt|jq
 agents|apt|fzf
 agents|apt|git-delta
+visual|brew|eza
+visual|brew|bat
+visual|brew|tree
+visual|apt|eza
+visual|apt|bat
+visual|apt|tree
 MANIFEST
 }
 
@@ -35,7 +41,7 @@ Usage: bin/dotfiles packages [options]
 Install package sets using supported native package managers.
 
 Options:
-  --set <name[,name...]>     Package set(s): default, agents (default: default)
+  --set <name[,name...]>     Package set(s): default, agents, visual (default: default)
   --manager <brew|apt>       Override package manager detection
   --list                     Show resolved package sets instead of installing
   --print-plan               Print the install plan and exit
@@ -81,7 +87,7 @@ dotfiles_detect_package_manager() {
 
 dotfiles_package_set_exists() {
   case "$1" in
-    default|agents)
+    default|agents|visual)
       return 0
       ;;
     *)
@@ -209,7 +215,7 @@ dotfiles_packages_main() {
         shift
         ;;
       --all)
-        package_sets=default,agents
+        package_sets=default,agents,visual
         shift
         ;;
       --help|-h)
