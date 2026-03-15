@@ -97,9 +97,12 @@ dotfiles_prepend_prefix_bins() {
 
 dotfiles_version_gt() {
     # Return 0 if $1 > $2 using dot-separated numeric comparison.
-    # Strips leading 'v' prefix (e.g. v18.0.0 -> 18.0.0).
-    _a=${1#v}
-    _b=${2#v}
+    # Strips leading 'v' prefix and pre-release suffix (e.g. v22.0.0-rc.1 -> 22.0.0).
+    # Pre-release versions are considered less than their release counterpart.
+    _a=${1#v}; _b=${2#v}
+    _a_pre=; _b_pre=
+    case $_a in *-*) _a_pre=${_a#*-}; _a=${_a%%-*} ;; esac
+    case $_b in *-*) _b_pre=${_b#*-}; _b=${_b%%-*} ;; esac
     while [ -n "$_a" ] || [ -n "$_b" ]; do
         _pa=${_a%%.*}; _pb=${_b%%.*}
         : "${_pa:=0}" "${_pb:=0}"
@@ -108,6 +111,9 @@ dotfiles_version_gt() {
         case $_a in *.*) _a=${_a#*.} ;; *) _a= ;; esac
         case $_b in *.*) _b=${_b#*.} ;; *) _b= ;; esac
     done
+    # Numeric parts equal: pre-release < release.
+    [ -n "$_a_pre" ] && [ -z "$_b_pre" ] && return 1
+    [ -z "$_a_pre" ] && [ -n "$_b_pre" ] && return 0
     return 1
 }
 

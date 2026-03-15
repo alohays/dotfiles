@@ -130,6 +130,7 @@ dotfiles_apply_base_env() {
         [ -n "$fnm_bin" ] && dotfiles_prepend_path "$fnm_bin"
     fi
 
+    _conda_condabin_done=
     for _conda_root in \
         "$HOME/.mambaforge" \
         "$HOME/mambaforge" \
@@ -141,13 +142,16 @@ dotfiles_apply_base_env() {
         "/opt/miniconda3" \
         "/usr/local/miniconda3"
     do
-        [ -d "$_conda_root/condabin" ] || [ -x "$_conda_root/bin/conda" ] || continue
-        dotfiles_prepend_path "$_conda_root/condabin"
+        [ -d "$_conda_root" ] || continue
+        if [ -z "$_conda_condabin_done" ] && [ -d "$_conda_root/condabin" ]; then
+            dotfiles_prepend_path "$_conda_root/condabin"
+            _conda_condabin_done=1
+        fi
         if [ -z "${CONDA_EXE:-}" ] && [ -x "$_conda_root/bin/conda" ]; then
             CONDA_EXE="$_conda_root/bin/conda"
             export CONDA_EXE
         fi
-        break
+        [ -n "$_conda_condabin_done" ] && [ -n "${CONDA_EXE:-}" ] && break
     done
     export PATH
 }
