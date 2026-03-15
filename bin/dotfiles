@@ -207,6 +207,8 @@ run_install() {
     fi
   fi
 
+  dotfiles_setup_git_config_local
+
   if _dotfiles_is_truthy "$DOTFILES_SKIP_TOOLS"; then
     dotfiles_info "Skipping default agent tools (--skip-tools)"
     return 0
