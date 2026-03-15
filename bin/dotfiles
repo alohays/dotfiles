@@ -205,9 +205,9 @@ run_install() {
     elif [ "${exit_code:-0}" -ne 0 ]; then
       return "${exit_code:-1}"
     fi
-  fi
 
-  dotfiles_setup_git_config_local
+    dotfiles_setup_git_config_local || true
+  fi
 
   if _dotfiles_is_truthy "$DOTFILES_SKIP_TOOLS"; then
     dotfiles_info "Skipping default agent tools (--skip-tools)"
