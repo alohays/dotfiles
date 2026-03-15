@@ -22,8 +22,10 @@ _gradient_color() {
 cpu_segment() {
   case $(uname -s) in
     Darwin)
-      command -v top >/dev/null 2>&1 || return 0
-      usage=$(top -l 2 -n 0 | awk '/^CPU usage:/ { sub(/%/ ,"", $3); sub(/%/, "", $5); value=$3+$5 } END { if (value != "") printf "%d", value }')
+      # Use ps to sum CPU% across all processes — much lighter than top -l 2.
+      # Normalize by CPU count since ps reports per-core percentages.
+      _ncpu=$(sysctl -n hw.ncpu 2>/dev/null || printf 1)
+      usage=$(ps -A -o %cpu | awk -v ncpu="$_ncpu" '{ sum += $1 } END { v = sum / ncpu; printf "%d", (v > 100 ? 100 : v) }')
       ;;
     Linux)
       usage=$(awk '{ v = $1 * 100 / '"$(nproc 2>/dev/null || printf 1)"'; printf "%d", (v > 100 ? 100 : v) }' /proc/loadavg 2>/dev/null || true)
