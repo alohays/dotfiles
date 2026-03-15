@@ -3,6 +3,10 @@
 [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/lib.sh" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/lib.sh"
 
 dotfiles_apply_base_env() {
+    # Intentionally runs on every source (from both zshenv and zshrc).
+    # macOS /etc/zprofile runs path_helper which reorders PATH between the two,
+    # so we must re-prepend our paths in zshrc to restore correct priority.
+
     if [ -n "${ZSH_VERSION:-}" ]; then
         setopt localoptions nonomatch
     fi
@@ -73,9 +77,15 @@ dotfiles_apply_base_env() {
                 ;;
         esac
         if [ -z "$nvm_bin" ]; then
+            _nvm_latest=
             for dir in "$nvm_root/versions/node/"*/bin; do
                 [ -d "$dir" ] || continue
-                nvm_bin=$dir
+                _nvm_ver=${dir%/bin}
+                _nvm_ver=${_nvm_ver##*/}
+                if [ -z "$_nvm_latest" ] || dotfiles_version_gt "$_nvm_ver" "$_nvm_latest"; then
+                    _nvm_latest=$_nvm_ver
+                    nvm_bin=$dir
+                fi
             done
         fi
     fi
@@ -106,45 +116,40 @@ dotfiles_apply_base_env() {
         elif [ -d "$fnm_root/aliases/default/bin" ]; then
             fnm_bin="$fnm_root/aliases/default/bin"
         else
+            _fnm_latest=
             for dir in "$fnm_root/node-versions/"*/installation/bin; do
                 [ -d "$dir" ] || continue
-                fnm_bin=$dir
+                _fnm_ver=${dir%/installation/bin}
+                _fnm_ver=${_fnm_ver##*/}
+                if [ -z "$_fnm_latest" ] || dotfiles_version_gt "$_fnm_ver" "$_fnm_latest"; then
+                    _fnm_latest=$_fnm_ver
+                    fnm_bin=$dir
+                fi
             done
         fi
         [ -n "$fnm_bin" ] && dotfiles_prepend_path "$fnm_bin"
     fi
 
-    dotfiles_prepend_first_path \
-        "$HOME/.mambaforge/condabin" \
-        "$HOME/mambaforge/condabin" \
-        "$HOME/.miniforge3/condabin" \
-        "$HOME/miniforge3/condabin" \
-        "$HOME/.miniconda3/condabin" \
-        "$HOME/miniconda3/condabin" \
-        "/opt/miniforge3/condabin" \
-        "/opt/miniconda3/condabin" \
-        "/usr/local/miniconda3/condabin"
+    for _conda_root in \
+        "$HOME/.mambaforge" \
+        "$HOME/mambaforge" \
+        "$HOME/.miniforge3" \
+        "$HOME/miniforge3" \
+        "$HOME/.miniconda3" \
+        "$HOME/miniconda3" \
+        "/opt/miniforge3" \
+        "/opt/miniconda3" \
+        "/usr/local/miniconda3"
+    do
+        [ -d "$_conda_root/condabin" ] || [ -x "$_conda_root/bin/conda" ] || continue
+        dotfiles_prepend_path "$_conda_root/condabin"
+        if [ -z "${CONDA_EXE:-}" ] && [ -x "$_conda_root/bin/conda" ]; then
+            CONDA_EXE="$_conda_root/bin/conda"
+            export CONDA_EXE
+        fi
+        break
+    done
     export PATH
-
-    if [ -z "${CONDA_EXE:-}" ]; then
-        for conda_exe in \
-            "$HOME/.mambaforge/bin/conda" \
-            "$HOME/mambaforge/bin/conda" \
-            "$HOME/.miniforge3/bin/conda" \
-            "$HOME/miniforge3/bin/conda" \
-            "$HOME/.miniconda3/bin/conda" \
-            "$HOME/miniconda3/bin/conda" \
-            "/opt/miniforge3/bin/conda" \
-            "/opt/miniconda3/bin/conda" \
-            "/usr/local/miniconda3/bin/conda"
-        do
-            if [ -x "$conda_exe" ]; then
-                CONDA_EXE=$conda_exe
-                export CONDA_EXE
-                break
-            fi
-        done
-    fi
 }
 
 dotfiles_apply_base_env
