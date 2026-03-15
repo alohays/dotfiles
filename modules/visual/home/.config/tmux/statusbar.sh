@@ -22,10 +22,23 @@ _gradient_color() {
 cpu_segment() {
   case $(uname -s) in
     Darwin)
-      # Use ps to sum CPU% across all processes — much lighter than top -l 2.
-      # Normalize by CPU count since ps reports per-core percentages.
-      _ncpu=$(sysctl -n hw.ncpu 2>/dev/null || printf 1)
-      usage=$(ps -A -o %cpu | awk -v ncpu="$_ncpu" '{ sum += $1 } END { v = sum / ncpu; printf "%d", (v > 100 ? 100 : v) }')
+      _cache="${TMPDIR:-/tmp}/.tmux_cpu_cache"
+      _lock="${TMPDIR:-/tmp}/.tmux_cpu_cache.lock"
+      # Read previous cached reading (empty on first run → segment hidden once)
+      usage=$(cat "$_cache" 2>/dev/null)
+      # Clean stale lock (>10s — top normally finishes in ~2s)
+      if [ -d "$_lock" ] && [ "$(( $(date +%s) - $(stat -f %m "$_lock" 2>/dev/null || echo 0) ))" -gt 10 ]; then
+        rmdir "$_lock" 2>/dev/null
+      fi
+      # Refresh cache in background (atomic via mkdir lock)
+      if mkdir "$_lock" 2>/dev/null; then
+        {
+          top -l 2 -n 0 2>/dev/null \
+            | awk '/^CPU usage:/ { sub(/%/,"", $3); sub(/%/,"", $5); v=$3+$5 } END { if (v!="") printf "%d", v }' \
+            > "$_cache"
+          rmdir "$_lock" 2>/dev/null
+        } &
+      fi
       ;;
     Linux)
       usage=$(awk '{ v = $1 * 100 / '"$(nproc 2>/dev/null || printf 1)"'; printf "%d", (v > 100 ? 100 : v) }' /proc/loadavg 2>/dev/null || true)
