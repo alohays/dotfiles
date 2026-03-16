@@ -7,6 +7,15 @@ DOTFILES_TOOLS_SH_LOADED=1
 
 RTK_INSTALL_URL=${RTK_INSTALL_URL:-https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh}
 
+_dotfiles_validate_rtk_url() {
+  case "$RTK_INSTALL_URL" in
+    https://raw.githubusercontent.com/*|https://github.com/*) return 0 ;;
+    file://*) return 0 ;;
+    https://*) dotfiles_die "RTK_INSTALL_URL must point to a trusted GitHub domain (got: $RTK_INSTALL_URL)" ;;
+    *) dotfiles_die "RTK_INSTALL_URL must use https (got: $RTK_INSTALL_URL)" ;;
+  esac
+}
+
 ZSH_PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 TMUX_PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/plugins"
 
@@ -151,6 +160,7 @@ dotfiles_install_tool() {
       ;;
     rtk:official)
       dotfiles_has_cmd curl || dotfiles_die "curl is required for method=official"
+      _dotfiles_validate_rtk_url
       curl -fsSL "$RTK_INSTALL_URL" | sh
       ;;
     zsh-plugins:git)

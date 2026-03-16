@@ -5,7 +5,6 @@ import argparse
 import json
 import os
 import platform
-import re
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -132,14 +131,14 @@ def resolve_profile(repo_root: Path, manifest: dict[str, Any], profile_name: str
     default_profiles = manifest.get("default_profiles", {})
     effective_name = profile_name
     if not effective_name or effective_name == "auto":
-        if os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"):
+        system_name = platform.system().lower()
+        is_ssh = bool(os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY"))
+        if system_name == "darwin":
+            effective_name = default_profiles.get("darwin", "macos-desktop")
+        elif is_ssh and not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
             effective_name = default_profiles.get("ssh", "ssh-server")
         else:
-            system_name = platform.system().lower()
-            if system_name == "darwin":
-                effective_name = default_profiles.get("darwin", "macos-desktop")
-            else:
-                effective_name = default_profiles.get("linux", "linux-desktop")
+            effective_name = default_profiles.get("linux", "linux-desktop")
 
     cache: dict[str, dict[str, Any]] = {}
     resolving: set[str] = set()
@@ -303,11 +302,12 @@ def ensure_unique_destination(path: Path) -> Path:
     if not path_exists(path):
         return path
     counter = 1
-    while True:
+    while counter <= 1000:
         candidate = path.with_name(f"{path.name}.{counter}")
         if not path_exists(candidate):
             return candidate
         counter += 1
+    raise DotfilesError(f"too many backup collisions for {path}")
 
 
 def cleanup_empty_parents(start: Path, stop_at: Path) -> None:
@@ -320,244 +320,36 @@ def cleanup_empty_parents(start: Path, stop_at: Path) -> None:
         current = current.parent
 
 
-def zsh_backup_content_source(
-    home: Path,
-    backups_root: Path,
-    backup_source: Path,
-    target_rel: str,
-    original_kind: str,
-) -> tuple[str, Path] | tuple[None, None]:
-    candidate_paths: list[Path] = []
-
-    if original_kind == "file" and backup_source.is_file():
-        candidate_paths.append(backup_source)
-
-    if original_kind == "symlink" and backup_source.is_symlink():
-        try:
-            raw_link_target = Path(os.readlink(backup_source))
-        except OSError:
-            raw_link_target = None
-
-        if raw_link_target is not None:
-            original_target = home / target_rel
-            if raw_link_target.is_absolute():
-                resolved_link_target = raw_link_target.resolve(strict=False)
-            else:
-                resolved_link_target = (original_target.parent / raw_link_target).resolve(strict=False)
-
-            dotfiles_home = (home / ".dotfiles").resolve(strict=False)
-            try:
-                checkout_relative = resolved_link_target.relative_to(dotfiles_home)
-            except ValueError:
-                checkout_relative = None
-
-            if checkout_relative is not None:
-                for checkout_backup in sorted(backups_root.glob("checkout-*"), reverse=True):
-                    checkout_candidate = checkout_backup / checkout_relative
-                    if checkout_candidate.is_file():
-                        candidate_paths.append(checkout_candidate)
-
-            if resolved_link_target.is_file():
-                candidate_paths.append(resolved_link_target)
-
-    seen: set[str] = set()
-    for candidate in candidate_paths:
-        key = str(candidate)
-        if key in seen:
-            continue
-        seen.add(key)
-        try:
-            content = candidate.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        if content.strip():
-            return content, candidate
-
-    return None, None
-
-
 # ---------------------------------------------------------------------------
-# Sanitize migrated zsh content: strip known-problematic patterns
+# Zsh migration: lazy-imported from scripts/migrate_zsh.py
 # ---------------------------------------------------------------------------
 
-_MIGRATE_LINE_STRIP_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^\s*unsetopt\s+GLOBAL_RCS"),
-    re.compile(r"^\s*source\s+.*antidote.*\.zsh"),
-    re.compile(r"^\s*source\s+.*\.zpreztorc"),
-    re.compile(r"^\s*source\s+.*zgen/init\.zsh"),
-    re.compile(r"^\s*source\s+.*zinit"),
-    re.compile(r"^\s*(export\s+)?ANTIDOTE_HOME\s*="),
-    re.compile(r"^\s*(export\s+)?ANTIDOTE_BUNDLE\s*="),
-    re.compile(r"""zstyle\s+['"]?:antidote:"""),
-    re.compile(r"""zstyle\s+['"]?:prezto:"""),
-    re.compile(r"^\s*antidote\s+(bundle|load|update)"),
-    re.compile(r"^\s*fast-theme\s+"),
-    re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zshrc"),
-    re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc"),
-    re.compile(r"^\s*source\s+/etc/zshrc"),
-    re.compile(r"^\s*source\s+/etc/zsh/zshrc"),
-]
+def _lazy_import_migrate_zsh():
+    """Import the zsh migration module from the same directory."""
+    import importlib.util
+    migrate_path = Path(__file__).resolve().parent / "migrate_zsh.py"
+    spec = importlib.util.spec_from_file_location("migrate_zsh", migrate_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
-_MIGRATE_BLOCK_START_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"^\s*if\s+\[[\[\s].*antidote"), "fi"),
-    (re.compile(r"^\s*if\s+\[[\[\s].*ANTIDOTE"), "fi"),
-    (re.compile(r"^\s*if\s+!?\s*grep.*antidote", re.IGNORECASE), "fi"),
-    (re.compile(r"^\s*if\s+!?\s*grep.*prezto", re.IGNORECASE), "fi"),
-    (re.compile(r"^\s*if\s+type\s+antidote"), "fi"),
-    (re.compile(r"^\s*function\s+antidote-"), "}"),
-    (re.compile(r"^\s*function\s+_antidote_"), "}"),
-    (re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zshrc\b.*;\s*then\s*$"), "fi"),
-    (re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc\b.*;\s*then\s*$"), "fi"),
-]
+_migrate_zsh_mod = None
 
+def _get_migrate_zsh():
+    global _migrate_zsh_mod
+    if _migrate_zsh_mod is None:
+        _migrate_zsh_mod = _lazy_import_migrate_zsh()
+    return _migrate_zsh_mod
 
 def sanitize_migrated_zsh_content(content: str) -> str:
-    """Strip known-obsolete patterns (antidote, prezto, GLOBAL_RCS) from migrated zsh content."""
-    lines = content.splitlines(keepends=True)
-    result: list[str] = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
+    """Re-exported for backward compatibility (used by tests)."""
+    return _get_migrate_zsh().sanitize_migrated_zsh_content(content)
 
-        # Check block-level patterns first.
-        block_matched = False
-        for start_pat, end_keyword in _MIGRATE_BLOCK_START_PATTERNS:
-            if start_pat.search(line):
-                if end_keyword == "}":
-                    end_re = re.compile(r"^\s*\}")
-                else:
-                    end_re = re.compile(r"^\s*" + re.escape(end_keyword) + r"\b")
-                j = i + 1
-                depth = 1
-                while j < len(lines):
-                    if end_re.search(lines[j]):
-                        depth -= 1
-                        if depth <= 0:
-                            j += 1
-                            break
-                    if re.match(r"^\s*if\b", lines[j]) and end_keyword == "fi":
-                        depth += 1
-                    if end_keyword == "}" and re.search(r"\{\s*$", lines[j]):
-                        depth += 1
-                    j += 1
-                i = j
-                block_matched = True
-                break
+def auto_migrate_zsh_backup(home, backups_root, backup_source, target_rel, original_kind, notes):
+    return _get_migrate_zsh().auto_migrate_zsh_backup(home, backups_root, backup_source, target_rel, original_kind, notes)
 
-        if block_matched:
-            continue
-
-        # Check line-level patterns.
-        line_matched = False
-        for pat in _MIGRATE_LINE_STRIP_PATTERNS:
-            if pat.search(line):
-                line_matched = True
-                break
-
-        if not line_matched:
-            result.append(line)
-        i += 1
-
-    # Collapse runs of consecutive blank lines (keep at most 1).
-    cleaned: list[str] = []
-    blank_count = 0
-    for line in result:
-        if line.strip() == "":
-            blank_count += 1
-            if blank_count <= 1:
-                cleaned.append(line)
-        else:
-            blank_count = 0
-            cleaned.append(line)
-
-    return "".join(cleaned)
-
-
-def auto_migrate_zsh_backup(
-    home: Path,
-    backups_root: Path,
-    backup_source: Path,
-    target_rel: str,
-    original_kind: str,
-    notes: list[str],
-) -> None:
-    destination_rel = AUTO_MIGRATED_ZSH_FILES.get(target_rel)
-    if destination_rel is None:
-        return
-
-    destination = home / destination_rel
-    if path_exists(destination):
-        notes.append(
-            f"legacy {target_rel} was backed up at {normalize_relpath(backup_source.relative_to(home))}; "
-            f"skipped auto-migration because {destination_rel} already exists"
-        )
-        return
-
-    content, _ = zsh_backup_content_source(
-        home=home,
-        backups_root=backups_root,
-        backup_source=backup_source,
-        target_rel=target_rel,
-        original_kind=original_kind,
-    )
-    if not content:
-        return
-
-    content = sanitize_migrated_zsh_content(content)
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    header = (
-        f"# Auto-migrated from backed-up {target_rel} on {utc_now()}.\n"
-        "# Known-obsolete patterns (antidote, prezto, GLOBAL_RCS) were stripped.\n"
-        "# Review and trim this file -- the framework handles PATH, plugins, and completion.\n\n"
-    )
-    if not content.endswith("\n"):
-        content += "\n"
-    destination.write_text(header + content, encoding="utf-8")
-    notes.append(f"auto-migrated legacy {target_rel} to {destination_rel}")
-
-
-def restore_zsh_migrations_from_history(home: Path, backups_root: Path, notes: list[str]) -> None:
-    if not backups_root.exists():
-        return
-
-    metadata_paths = sorted(backups_root.glob("*/metadata.json"), reverse=True)
-    if not metadata_paths:
-        return
-
-    for target_rel, destination_rel in AUTO_MIGRATED_ZSH_FILES.items():
-        if path_exists(home / destination_rel):
-            continue
-
-        for metadata_path in metadata_paths:
-            metadata = load_json(metadata_path)
-            entries = metadata.get("entries", [])
-            if not isinstance(entries, list):
-                continue
-            matching_entry = next(
-                (
-                    entry
-                    for entry in entries
-                    if entry.get("target") == target_rel
-                ),
-                None,
-            )
-            if matching_entry is None:
-                continue
-
-            backup_path = matching_entry.get("backup_path")
-            if not backup_path:
-                continue
-            backup_source = metadata_path.parent / backup_path
-            auto_migrate_zsh_backup(
-                home=home,
-                backups_root=backups_root,
-                backup_source=backup_source,
-                target_rel=target_rel,
-                original_kind=str(matching_entry.get("original_kind", "")),
-                notes=notes,
-            )
-            break
+def restore_zsh_migrations_from_history(home, backups_root, notes):
+    return _get_migrate_zsh().restore_zsh_migrations_from_history(home, backups_root, notes)
 
 
 def apply_plan(plan: dict[str, Any], dry_run: bool) -> dict[str, Any]:
@@ -593,59 +385,72 @@ def apply_plan(plan: dict[str, Any], dry_run: bool) -> dict[str, Any]:
             target.unlink()
             cleanup_empty_parents(target.parent, home)
 
+    completed_targets: set[str] = set()
+    link_error: Exception | None = None
     for action in actions:
         if action["kind"] not in {"link", "backup-and-link"}:
             continue
 
         spec = desired[action["target"]]
         target = Path(spec["target"])
-        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
 
-        if action["kind"] == "backup-and-link" and path_exists(target):
-            if backup_run_root is None:
-                backup_run_root = backups_root / timestamp_token()
-            backup_destination = ensure_unique_destination(backup_run_root / "targets" / action["target"])
-            backup_destination.parent.mkdir(parents=True, exist_ok=True)
-            original_kind = describe_existing(target)
-            shutil.move(str(target), str(backup_destination))
-            backup_entries.append(
-                {
-                    "target": action["target"],
-                    "backup_path": normalize_relpath(backup_destination.relative_to(backup_run_root)),
-                    "original_kind": original_kind,
-                    "replaced_by": spec["source_rel"],
-                }
-            )
-            auto_migrate_zsh_backup(
-                home=home,
-                backups_root=backups_root,
-                backup_source=backup_destination,
-                target_rel=action["target"],
-                original_kind=original_kind,
-                notes=notes,
-            )
+            if action["kind"] == "backup-and-link" and path_exists(target):
+                if backup_run_root is None:
+                    backup_run_root = backups_root / timestamp_token()
+                backup_destination = ensure_unique_destination(backup_run_root / "targets" / action["target"])
+                backup_destination.parent.mkdir(parents=True, exist_ok=True)
+                original_kind = describe_existing(target)
+                shutil.move(str(target), str(backup_destination))
+                backup_entries.append(
+                    {
+                        "target": action["target"],
+                        "backup_path": normalize_relpath(backup_destination.relative_to(backup_run_root)),
+                        "original_kind": original_kind,
+                        "replaced_by": spec["source_rel"],
+                    }
+                )
+                auto_migrate_zsh_backup(
+                    home=home,
+                    backups_root=backups_root,
+                    backup_source=backup_destination,
+                    target_rel=action["target"],
+                    original_kind=original_kind,
+                    notes=notes,
+                )
 
-        if path_exists(target):
-            if target.is_dir():
-                raise DotfilesError(f"cannot replace existing directory at {target}")
-            target.unlink()
-        target.symlink_to(Path(spec["source"]))
+            if path_exists(target):
+                if target.is_dir():
+                    raise DotfilesError(f"cannot replace existing directory at {target}")
+                target.unlink()
+            target.symlink_to(os.path.relpath(spec["source"], target.parent))
+            completed_targets.add(action["target"])
+        except DotfilesError:
+            raise
+        except OSError as exc:
+            link_error = exc
+            notes.append(f"failed to link {action['target']}: {exc}")
+            break
 
     restore_zsh_migrations_from_history(home=home, backups_root=backups_root, notes=notes)
 
+    # Write inventory for all successfully linked targets (including partial apply).
+    inventory_entries = [
+        {
+            "target": target_rel,
+            "source": spec["source_rel"],
+            "module": spec["module"],
+        }
+        for target_rel, spec in sorted(desired.items())
+        if link_error is None or target_rel in completed_targets
+    ]
     inventory_payload = {
         "schema_version": 1,
         "updated_at": utc_now(),
         "repo_root": str(repo_root),
         "profile": plan["profile"]["name"],
-        "entries": [
-            {
-                "target": target_rel,
-                "source": spec["source_rel"],
-                "module": spec["module"],
-            }
-            for target_rel, spec in sorted(desired.items())
-        ],
+        "entries": inventory_entries,
     }
     write_json(inventory_path, inventory_payload)
 
@@ -663,6 +468,9 @@ def apply_plan(plan: dict[str, Any], dry_run: bool) -> dict[str, Any]:
             },
         )
         backup_metadata_path = str(metadata_path)
+
+    if link_error is not None:
+        raise DotfilesError(f"apply failed partway through: {link_error}") from link_error
 
     return {
         "ok": True,

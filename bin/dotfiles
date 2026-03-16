@@ -48,7 +48,7 @@ if [ -z "$REPO_ROOT" ]; then
 fi
 
 # shellcheck source=/dev/null
-. "$REPO_ROOT/scripts/sh/lib.sh"
+. "$REPO_ROOT/scripts/sh/cli-lib.sh"
 
 usage() {
   cat <<USAGE
@@ -330,6 +330,13 @@ run_update() {
         ;;
     esac
   done
+
+  # Validate branch name contains only safe characters.
+  case "$update_branch" in
+    *[!a-zA-Z0-9/_.-]*)
+      dotfiles_die "invalid branch name: $update_branch"
+      ;;
+  esac
 
   if _dotfiles_is_truthy "$update_fast" && ! _dotfiles_is_truthy "$DOTFILES_SKIP_TOOLS"; then
     DOTFILES_SKIP_TOOLS=1
