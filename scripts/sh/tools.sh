@@ -117,6 +117,7 @@ dotfiles_tool_install_plan() {
     zsh-plugins:git)
       printf '%s\n' "git clone zsh-users/zsh-autosuggestions -> $ZSH_PLUGINS_DIR/zsh-autosuggestions"
       printf '%s\n' "git clone zsh-users/zsh-syntax-highlighting -> $ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+      printf '%s\n' "git clone zsh-users/zsh-completions -> $ZSH_PLUGINS_DIR/zsh-completions"
       ;;
     tmux-resurrect:git)
       printf '%s\n' "git clone tmux-plugins/tmux-resurrect -> $TMUX_PLUGINS_DIR/tmux-resurrect"
@@ -172,6 +173,7 @@ dotfiles_install_tool() {
       mkdir -p "$ZSH_PLUGINS_DIR"
       _dotfiles_git_clone_or_pull https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_PLUGINS_DIR/zsh-autosuggestions"
       _dotfiles_git_clone_or_pull https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_PLUGINS_DIR/zsh-syntax-highlighting"
+      _dotfiles_git_clone_or_pull https://github.com/zsh-users/zsh-completions.git "$ZSH_PLUGINS_DIR/zsh-completions"
       ;;
     tmux-resurrect:git)
       dotfiles_has_cmd git || dotfiles_die "git is required for tmux-resurrect"
