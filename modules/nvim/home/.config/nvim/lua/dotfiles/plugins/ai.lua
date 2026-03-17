@@ -1,5 +1,5 @@
 return {
-  'anthropics/claudecode.nvim',
+  'coder/claudecode.nvim',
   cmd = { 'ClaudeCode', 'ClaudeCodeStart' },
   opts = {},
 }

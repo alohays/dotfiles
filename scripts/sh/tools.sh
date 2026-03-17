@@ -42,8 +42,8 @@ Options for install/plan:
 Supported tools:
   rtk                        Install RTK using Homebrew when available or the
                              official install script otherwise
-  zsh-plugins                Clone zsh-autosuggestions and zsh-syntax-highlighting
-                             as opt-in interactive extras
+  zsh-plugins                Clone zsh-autosuggestions, zsh-syntax-highlighting,
+                             and zsh-completions as opt-in interactive extras
   tmux-resurrect             Clone tmux-resurrect for opt-in session persistence
   powerlevel10k              Clone Powerlevel10k zsh prompt theme
   fast-syntax-highlighting   Clone fast-syntax-highlighting (F-Sy-H) for richer
