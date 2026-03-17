@@ -30,12 +30,18 @@ return {
         },
         sections = {
           lualine_a = { 'mode' },
-          lualine_b = { 'branch', 'diff' },
-          lualine_c = {
-            { 'filename', path = 1 },
+          lualine_b = {
+            'branch',
+            { 'diff', cond = function() return vim.fn.winwidth(0) > 80 end },
           },
-          lualine_x = { 'diagnostics', 'filetype' },
-          lualine_y = { 'progress' },
+          lualine_c = { { 'filename', path = 1 } },
+          lualine_x = {
+            'diagnostics',
+            { 'filetype', cond = function() return vim.fn.winwidth(0) > 70 end },
+          },
+          lualine_y = {
+            { 'progress', cond = function() return vim.fn.winwidth(0) > 60 end },
+          },
           lualine_z = { 'location' },
         },
         winbar = {
@@ -58,6 +64,14 @@ return {
     cmd = 'Neotree',
     opts = {
       close_if_last_window = true,
+      source_selector = {
+        winbar = true,
+        sources = {
+          { source = 'filesystem', display_name = ' Files' },
+          { source = 'git_status', display_name = ' Git' },
+          { source = 'buffers', display_name = '󰈙 Bufs' },
+        },
+      },
       filesystem = {
         follow_current_file = { enabled = true },
         filtered_items = { force_visible_in_empty_folder = true },
@@ -113,7 +127,9 @@ return {
             preview_width = 0.55,
           },
           path_display = { 'truncate' },
-          winblend = 6,
+          winblend = 8,
+          borderchars = { '─', '│', '─', '│', '╭', '╮', '╯', '╰' },
+          file_ignore_patterns = { '%.git/', 'node_modules/' },
         },
         pickers = {
           find_files = {
@@ -121,6 +137,29 @@ return {
           },
         },
       }
+    end,
+  },
+  {
+    '3rd/image.nvim',
+    event = 'VeryLazy',
+    cond = function()
+      local term = vim.env.TERM_PROGRAM or ''
+      return term == 'WezTerm' or term == 'kitty' or term == 'ghostty'
+    end,
+    config = function()
+      if vim.fn.executable('magick') ~= 1 then return end
+      local term = vim.env.TERM_PROGRAM or ''
+      local backend = 'kitty'
+      if term == 'WezTerm' then
+        backend = 'sixel'
+      end
+      require('image').setup({
+        backend = backend,
+        processor = 'magick_cli',
+        hijack_file_patterns = {
+          '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.avif',
+        },
+      })
     end,
   },
 }

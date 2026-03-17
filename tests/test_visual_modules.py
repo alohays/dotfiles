@@ -19,6 +19,9 @@ PROMPT_SCRIPT = (
     / "interactive.d"
     / "80-prompt.sh"
 )
+P10K_CONFIG = (
+    REPO_ROOT / "modules" / "prompt" / "home" / ".config" / "dotfiles" / "p10k.zsh"
+)
 WEZTERM_CONFIG = REPO_ROOT / "modules" / "terminal" / "home" / ".config" / "wezterm" / "wezterm.lua"
 ALACRITTY_CONFIG = (
     REPO_ROOT / "modules" / "terminal" / "home" / ".config" / "alacritty" / "alacritty.toml"
@@ -236,6 +239,28 @@ class VisualModulesTests(unittest.TestCase):
         prompt = completed.stdout.strip()
         self.assertIn("%F{cyan}%n%f", prompt)
         self.assertIn("%F{magenta}❯%f", prompt)
+
+    def test_p10k_instant_prompt_only_in_rich_profile(self) -> None:
+        home_base = self.make_temp_home()
+        self.apply_profile(home_base, "base")
+        instant = home_base / ".config" / "dotfiles" / "interactive.d" / "00-p10k-instant-prompt.zsh"
+        self.assertFalse(instant.exists())
+
+        home_rich = self.make_temp_home()
+        self.apply_profile(home_rich, "linux-desktop-rich")
+        instant_rich = home_rich / ".config" / "dotfiles" / "interactive.d" / "00-p10k-instant-prompt.zsh"
+        self.assertTrue(instant_rich.exists())
+
+    def test_p10k_includes_cloud_segments(self) -> None:
+        content = P10K_CONFIG.read_text(encoding="utf-8")
+        for segment in ("aws", "gcloud", "azure"):
+            self.assertIn(segment, content)
+        for guard in (
+            "POWERLEVEL9K_AWS_SHOW_ON_COMMAND",
+            "POWERLEVEL9K_GCLOUD_SHOW_ON_COMMAND",
+            "POWERLEVEL9K_AZURE_SHOW_ON_COMMAND",
+        ):
+            self.assertIn(guard, content)
 
     def test_completion_module_only_in_rich_profile(self) -> None:
         home_base = self.make_temp_home()

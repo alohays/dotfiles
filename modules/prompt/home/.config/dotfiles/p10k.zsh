@@ -36,6 +36,9 @@
     pyenv
     node_version
     kubecontext
+    aws
+    gcloud
+    azure
     time
   )
 
@@ -154,6 +157,18 @@
   typeset -g POWERLEVEL9K_KUBECONTEXT_SHOW_ON_COMMAND='kubectl|helm|kubens|kubectx|oc|istioctl|kogito|k9s|helmfile|flux|fluxctl|stern|kubeseal|skaffold|kubent|kubelogin|argocd'
   typeset -g POWERLEVEL9K_KUBECONTEXT_FOREGROUND=134
   typeset -g POWERLEVEL9K_KUBECONTEXT_SHORTEN=()
+
+  # === aws ===
+  typeset -g POWERLEVEL9K_AWS_SHOW_ON_COMMAND='aws|terraform|pulumi|cdk'
+  typeset -g POWERLEVEL9K_AWS_FOREGROUND=208
+
+  # === gcloud ===
+  typeset -g POWERLEVEL9K_GCLOUD_SHOW_ON_COMMAND='gcloud|gsutil|terraform'
+  typeset -g POWERLEVEL9K_GCLOUD_FOREGROUND=33
+
+  # === azure ===
+  typeset -g POWERLEVEL9K_AZURE_SHOW_ON_COMMAND='az|terraform'
+  typeset -g POWERLEVEL9K_AZURE_FOREGROUND=39
 
   # === time ===
   typeset -g POWERLEVEL9K_TIME_FOREGROUND=66

@@ -19,4 +19,11 @@ return {
     dependencies = { 'nvim-lua/plenary.nvim' },
     opts = {},
   },
+  {
+    'rhysd/git-messenger.vim',
+    cmd = 'GitMessenger',
+    init = function()
+      vim.g['git_messenger_no_default_mappings'] = true
+    end,
+  },
 }

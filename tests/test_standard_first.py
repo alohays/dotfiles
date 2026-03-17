@@ -135,6 +135,15 @@ class StandardFirstTests(unittest.TestCase):
         self.assertNotIn("alias top=", content)
         self.assertNotIn("alias grep=", content)
 
+    def test_zsh_plugins_tool_includes_completions(self) -> None:
+        content = TOOLS_SH.read_text(encoding="utf-8")
+        self.assertIn("zsh-completions", content)
+
+    def test_new_nvim_plugins_exist(self) -> None:
+        for name in ("bufferline.lua", "format.lua", "ai.lua"):
+            path = NVIM_PLUGINS_DIR / name
+            self.assertTrue(path.exists(), f"Missing plugin file: {name}")
+
     def test_base_profile_has_no_rich_extras(self) -> None:
         home = self.make_temp_home()
         subprocess.run(
@@ -167,6 +176,9 @@ class StandardFirstTests(unittest.TestCase):
         )
         self.assertFalse(
             (home / ".config" / "dotfiles" / "interactive.d" / "84-rich-aliases.sh").exists()
+        )
+        self.assertFalse(
+            (home / ".config" / "dotfiles" / "interactive.d" / "00-p10k-instant-prompt.zsh").exists()
         )
 
 
