@@ -139,4 +139,27 @@ return {
       }
     end,
   },
+  {
+    '3rd/image.nvim',
+    event = 'VeryLazy',
+    cond = function()
+      local term = vim.env.TERM_PROGRAM or ''
+      return term == 'WezTerm' or term == 'kitty' or term == 'ghostty'
+    end,
+    config = function()
+      if vim.fn.executable('magick') ~= 1 then return end
+      local term = vim.env.TERM_PROGRAM or ''
+      local backend = 'kitty'
+      if term == 'WezTerm' then
+        backend = 'sixel'
+      end
+      require('image').setup({
+        backend = backend,
+        processor = 'magick_cli',
+        hijack_file_patterns = {
+          '*.png', '*.jpg', '*.jpeg', '*.gif', '*.webp', '*.avif',
+        },
+      })
+    end,
+  },
 }
