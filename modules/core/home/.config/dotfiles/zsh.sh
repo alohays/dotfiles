@@ -15,7 +15,7 @@ setopt HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS HIST_VERIFY
 setopt INTERACTIVE_COMMENTS
 
 autoload -Uz compinit
-compinit -d "$XDG_CACHE_HOME/zsh/zcompdump"
+compinit -d "$XDG_CACHE_HOME/zsh/zcompdump" 2>/dev/null || true
 
 # Keep completion behavior close to stock zsh defaults.
 # Users who want matcher/menu tweaks can opt in via local.zsh.zsh.
