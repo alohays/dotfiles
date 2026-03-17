@@ -130,7 +130,16 @@ dotfiles_apply_base_env() {
         [ -n "$fnm_bin" ] && dotfiles_prepend_path "$fnm_bin"
     fi
 
+    # Short-circuit: skip discovery if CONDA_EXE is already valid.
     _conda_condabin_done=
+    if [ -n "${CONDA_EXE:-}" ] && [ -x "$CONDA_EXE" ]; then
+        _conda_root=$(dirname "$(dirname "$CONDA_EXE")")
+        if [ -d "$_conda_root/condabin" ]; then
+            dotfiles_prepend_path "$_conda_root/condabin"
+            _conda_condabin_done=1
+        fi
+    fi
+    if [ -z "$_conda_condabin_done" ] || [ -z "${CONDA_EXE:-}" ]; then
     for _conda_root in \
         "$HOME/.mambaforge" \
         "$HOME/mambaforge" \
@@ -153,11 +162,14 @@ dotfiles_apply_base_env() {
         fi
         [ -n "$_conda_condabin_done" ] && [ -n "${CONDA_EXE:-}" ] && break
     done
+    fi
     export PATH
 }
 
 dotfiles_apply_base_env
 
+# Guard below is intentionally after dotfiles_apply_base_env — PATH helpers
+# are idempotent (lib.sh:43), and the rest of this file should only run once.
 if [ "${DOTFILES_ENV_SH_LOADED:-0}" = "1" ]; then
     return 0
 fi

@@ -272,6 +272,22 @@ done
 export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS
 require_cmd git
 
+# Validate target and backup paths.
+case "$DOTFILES_TARGET" in
+  /*) ;;
+  *) die "--target must be an absolute path: $DOTFILES_TARGET" ;;
+esac
+case "$DOTFILES_TARGET" in
+  */..*) die "--target must not contain .. traversal: $DOTFILES_TARGET" ;;
+esac
+case "$DOTFILES_BACKUP_ROOT" in
+  /*) ;;
+  *) die "--backup-root must be an absolute path: $DOTFILES_BACKUP_ROOT" ;;
+esac
+case "$DOTFILES_BACKUP_ROOT" in
+  */..*) die "--backup-root must not contain .. traversal: $DOTFILES_BACKUP_ROOT" ;;
+esac
+
 needs_clone=1
 if [ -e "$DOTFILES_TARGET" ]; then
   if [ -d "$DOTFILES_TARGET/.git" ]; then

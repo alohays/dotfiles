@@ -4,6 +4,30 @@
 
 Standard-first, agent-friendly dotfiles for macOS, Linux desktops, and SSH/no-sudo servers — designed for coding agents that want boring defaults and humans who still want a beautiful terminal.
 
+## Quick start
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alohays/dotfiles/main/bootstrap/install.sh | sh -s --
+```
+
+This clones the repo into `~/.dotfiles`, detects your environment (macOS desktop / Linux desktop / SSH server), applies the matching profile, and installs default agent tools. Existing configs are backed up automatically.
+
+### Requirements
+
+- macOS 10.15+ or Linux (Debian/Ubuntu tested)
+- Python 3.11+ (for the apply engine)
+- git
+
+### Comparison
+
+| | alohays/dotfiles | chezmoi | yadm | GNU stow |
+|---|---|---|---|---|
+| Agent-first defaults | Yes | No | No | No |
+| Profile-based configs | Yes (6 profiles) | Templates | No | No |
+| Auto-migration from legacy | Yes | No | No | No |
+| Local override pattern | Built-in | Via templates | Via alt files | Manual |
+| No custom keybindings | By design | N/A | N/A | N/A |
+
 ## Why this repo exists
 
 This repo is a fresh AI-era reset with a sincere shoutout to [`wookayin/dotfiles`](https://github.com/wookayin/dotfiles), a beloved long-time inspiration. That style of thoughtful, personal, deeply polished dotfiles is still something I admire.

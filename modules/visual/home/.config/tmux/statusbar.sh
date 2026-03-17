@@ -27,6 +27,7 @@ cpu_segment() {
       # Read previous cached reading (empty on first run → segment hidden once)
       usage=$(cat "$_cache" 2>/dev/null)
       # Clean stale lock (>10s — top normally finishes in ~2s)
+      # macOS-only: BSD stat -f %m returns modification time in epoch seconds.
       if [ -d "$_lock" ] && [ "$(( $(date +%s) - $(stat -f %m "$_lock" 2>/dev/null || echo 0) ))" -gt 10 ]; then
         rmdir "$_lock" 2>/dev/null
       fi
@@ -41,6 +42,7 @@ cpu_segment() {
       fi
       ;;
     Linux)
+      # Linux: use 1-min load average as a CPU proxy (includes I/O wait).
       usage=$(awk '{ v = $1 * 100 / '"$(nproc 2>/dev/null || printf 1)"'; printf "%d", (v > 100 ? 100 : v) }' /proc/loadavg 2>/dev/null || true)
       ;;
     *) usage= ;;
@@ -52,18 +54,21 @@ cpu_segment() {
 
 ram_segment() {
   pct=0
+  used_display=
   case $(uname -s) in
     Darwin)
       command -v vm_stat >/dev/null 2>&1 || return 0
-      eval "$(vm_stat | awk '/Pages active|Pages wired down|Pages free|Pages inactive/ {gsub("\\.", "", $NF); k=tolower($2); sub(/:/, "", k); v[k]+=$NF} END {
+      set -- $(vm_stat | awk '/Pages active|Pages wired down|Pages free|Pages inactive/ {gsub("\\.", "", $NF); k=tolower($2); sub(/:/, "", k); v[k]+=$NF} END {
         total=v["active"]+v["wired"]+v["free"]+v["inactive"]
         used_val=v["active"]+v["wired"]
-        if (total>0) printf "pct=%d used_display=%.1fG", used_val*100/total, used_val*4096/1024/1024/1024
-      }')"
+        if (total>0) printf "%d %.1fG", used_val*100/total, used_val*4096/1024/1024/1024
+      }')
+      pct=${1:-0}; used_display=${2:-}
       ;;
     Linux)
       command -v free >/dev/null 2>&1 || return 0
-      eval "$(free -m | awk '/^Mem:/ { if ($2>0) printf "pct=%d used_display=%.1fG", ($3+$5)*100/$2, ($3+$5)/1024 }')"
+      set -- $(free -m | awk '/^Mem:/ { if ($2>0) printf "%d %.1fG", ($3+$5)*100/$2, ($3+$5)/1024 }')
+      pct=${1:-0}; used_display=${2:-}
       ;;
     *) return 0 ;;
   esac

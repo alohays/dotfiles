@@ -110,6 +110,7 @@ run_bootstrap_install() {
   HOME="$HOME_DIR" \
   XDG_STATE_HOME="$HOME_DIR/.local/state" \
   RTK_INSTALL_URL="file://$RTK_INSTALLER" \
+  DOTFILES_ALLOW_FILE_URLS=1 \
   DOTFILES_DEFAULT_AGENT_TOOLS=rtk \
   DOTFILES_TOOLS_DEFAULT_METHOD=official \
   "$REPO_ROOT/bootstrap/install.sh" \

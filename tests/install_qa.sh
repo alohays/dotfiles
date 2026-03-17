@@ -678,7 +678,7 @@ run_bootstrap_pipe() {
   source_repo=$3
   rtk_installer=$4
   shift 4
-  cat "$source_repo/bootstrap/install.sh" | HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" RTK_INSTALL_URL="file://$rtk_installer" DOTFILES_DEFAULT_AGENT_TOOLS=rtk DOTFILES_TOOLS_DEFAULT_METHOD=official sh -s -- --repo "$source_repo" --target "$home_dir/.dotfiles" --backup-root "$backup_root" --yes --non-interactive "$@"
+  cat "$source_repo/bootstrap/install.sh" | HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" RTK_INSTALL_URL="file://$rtk_installer" DOTFILES_ALLOW_FILE_URLS=1 DOTFILES_DEFAULT_AGENT_TOOLS=rtk DOTFILES_TOOLS_DEFAULT_METHOD=official sh -s -- --repo "$source_repo" --target "$home_dir/.dotfiles" --backup-root "$backup_root" --yes --non-interactive "$@"
 }
 
 scenario_end_to_end_flows() {
