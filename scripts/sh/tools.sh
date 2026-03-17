@@ -10,7 +10,11 @@ RTK_INSTALL_URL=${RTK_INSTALL_URL:-https://raw.githubusercontent.com/rtk-ai/rtk/
 _dotfiles_validate_rtk_url() {
   case "$RTK_INSTALL_URL" in
     https://raw.githubusercontent.com/*|https://github.com/*) return 0 ;;
-    file://*) return 0 ;;
+    file://*)
+      if _dotfiles_is_truthy "${DOTFILES_ALLOW_FILE_URLS:-0}"; then
+        return 0
+      fi
+      dotfiles_die "RTK_INSTALL_URL must use https (got: $RTK_INSTALL_URL)" ;;
     https://*) dotfiles_die "RTK_INSTALL_URL must point to a trusted GitHub domain (got: $RTK_INSTALL_URL)" ;;
     *) dotfiles_die "RTK_INSTALL_URL must use https (got: $RTK_INSTALL_URL)" ;;
   esac

@@ -19,11 +19,6 @@ DEFAULT_INVENTORY_FILE = "managed-targets.json"
 DEFAULT_BACKUPS_DIR = "backups"
 SKIP_NAMES = {".DS_Store", ".gitkeep"}
 SKIP_PARTS = {".git", "__pycache__"}
-AUTO_MIGRATED_ZSH_FILES = {
-    ".zshenv": ".config/dotfiles/local.zshenv.sh",
-    ".zprofile": ".config/dotfiles/local.zprofile.sh",
-    ".zshrc": ".config/dotfiles/local.zsh.zsh",
-}
 
 
 class DotfilesError(RuntimeError):

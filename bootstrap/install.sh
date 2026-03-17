@@ -284,6 +284,9 @@ case "$DOTFILES_BACKUP_ROOT" in
   /*) ;;
   *) die "--backup-root must be an absolute path: $DOTFILES_BACKUP_ROOT" ;;
 esac
+case "$DOTFILES_BACKUP_ROOT" in
+  */..*) die "--backup-root must not contain .. traversal: $DOTFILES_BACKUP_ROOT" ;;
+esac
 
 needs_clone=1
 if [ -e "$DOTFILES_TARGET" ]; then
