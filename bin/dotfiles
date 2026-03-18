@@ -51,29 +51,27 @@ fi
 . "$REPO_ROOT/scripts/sh/cli-lib.sh"
 
 usage() {
-  cat <<USAGE
-Usage: $CLI_NAME [global-options] <command> [command-args]
-
-Global options:
-  --repo-root <path>         Override repo root detection
-  --dry-run                  Print actions without changing anything
-  --yes, -y                  Approve prompts in delegated commands
-  --non-interactive          Fail instead of prompting in delegated commands
-  --skip-apply               Skip the apply phase for install/update
-  --skip-tools               Skip default agent-tool installation for install/update
-  --help, -h                 Show this help
-
-Commands:
-  help                       Show this help
-  bootstrap                  Run bootstrap/install.sh using this repo as the source
-  install                    Apply configs from this checkout if the apply engine exists
-  apply                      Invoke scripts/dotfiles.py apply
-  update                     sync to origin/main (or \$DOTFILES_BRANCH), then run install
-  packages                   Install default/opt-in package sets via native package managers
-  tools                      Inspect or install external agent tools such as RTK
-
-See "$CLI_NAME update --help" for update-specific options such as --fast.
-USAGE
+  printf '%bUsage:%b %s [global-options] <command> [command-args]\n' "$CLR_BOLD" "$CLR_RESET" "$CLI_NAME"
+  printf '\n'
+  printf '%bGlobal options:%b\n' "$CLR_CYAN" "$CLR_RESET"
+  printf '  --repo-root <path>         Override repo root detection\n'
+  printf '  --dry-run                  Print actions without changing anything\n'
+  printf '  --yes, -y                  Approve prompts in delegated commands\n'
+  printf '  --non-interactive          Fail instead of prompting in delegated commands\n'
+  printf '  --skip-apply               Skip the apply phase for install/update\n'
+  printf '  --skip-tools               Skip default agent-tool installation for install/update\n'
+  printf '  --help, -h                 Show this help\n'
+  printf '\n'
+  printf '%bCommands:%b\n' "$CLR_CYAN" "$CLR_RESET"
+  printf '  help                       Show this help\n'
+  printf '  bootstrap                  Run bootstrap/install.sh using this repo as the source\n'
+  printf '  install                    Apply configs from this checkout if the apply engine exists\n'
+  printf '  apply                      Invoke scripts/dotfiles.py apply\n'
+  printf '  update                     sync to origin/main (or $DOTFILES_BRANCH), then run install\n'
+  printf '  packages                   Install default/opt-in package sets via native package managers\n'
+  printf '  tools                      Inspect or install external agent tools such as RTK\n'
+  printf '\n'
+  printf 'See "%s update --help" for update-specific options such as --fast.\n' "$CLI_NAME"
 }
 
 update_usage() {
@@ -192,17 +190,34 @@ run_install() {
 
   export DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS
 
+  # Show banner on install (skip if already shown by run_update).
+  if [ "${_dotfiles_banner_shown:-0}" != "1" ]; then
+    # shellcheck source=/dev/null
+    . "$REPO_ROOT/scripts/sh/banner.sh"
+    dotfiles_banner
+  fi
+
+  _install_ok=0
+  _install_skip=0
+  _install_fail=0
+
   if _dotfiles_is_truthy "$DOTFILES_SKIP_APPLY"; then
-    dotfiles_info "Skipping apply step (--skip-apply)"
+    dotfiles_skip "apply step (--skip-apply)"
+    _install_skip=$(( _install_skip + 1 ))
   else
+    dotfiles_step "Applying configs"
     if dotfiles_invoke_apply_engine "$REPO_ROOT" apply "$@"; then
-      :
+      dotfiles_ok "Configs applied"
+      _install_ok=$(( _install_ok + 1 ))
     else
       exit_code=$?
     fi
     if [ "${exit_code:-0}" -eq 2 ]; then
-      dotfiles_warn "apply engine not found at $REPO_ROOT/scripts/dotfiles.py; checkout/bootstrap completed without applying configs"
+      dotfiles_skip "apply engine not found; checkout/bootstrap completed without applying configs"
+      _install_skip=$(( _install_skip + 1 ))
     elif [ "${exit_code:-0}" -ne 0 ]; then
+      dotfiles_fail "Config apply failed (exit $exit_code)"
+      _install_fail=$(( _install_fail + 1 ))
       return "${exit_code:-1}"
     fi
 
@@ -210,12 +225,30 @@ run_install() {
   fi
 
   if _dotfiles_is_truthy "$DOTFILES_SKIP_TOOLS"; then
-    dotfiles_info "Skipping default agent tools (--skip-tools)"
-    return 0
+    dotfiles_skip "default agent tools (--skip-tools)"
+    _install_skip=$(( _install_skip + 1 ))
+  else
+    dotfiles_step "Installing default tools"
+    if load_tools_support && dotfiles_install_default_tools; then
+      dotfiles_ok "Default tools installed"
+      _install_ok=$(( _install_ok + 1 ))
+    else
+      dotfiles_fail "Default tools installation failed"
+      _install_fail=$(( _install_fail + 1 ))
+    fi
   fi
 
-  load_tools_support
-  dotfiles_install_default_tools
+  # Summary line.
+  dotfiles_header "Install complete"
+  if [ -n "$CLR_GREEN" ]; then
+    printf '%b  ✓ %d applied%b · %b⚠ %d skipped%b · %b✗ %d failed%b\n' \
+      "$CLR_GREEN" "$_install_ok" "$CLR_RESET" \
+      "$CLR_YELLOW" "$_install_skip" "$CLR_RESET" \
+      "$CLR_RED" "$_install_fail" "$CLR_RESET"
+  else
+    printf '  ok %d applied · WARN %d skipped · FAIL %d failed\n' \
+      "$_install_ok" "$_install_skip" "$_install_fail"
+  fi
 }
 
 dotfiles_update_checkout() {
@@ -344,10 +377,18 @@ run_update() {
     dotfiles_info "Fast update requested; skipping default agent tools"
   fi
 
+  # Show banner on update.
+  # shellcheck source=/dev/null
+  . "$REPO_ROOT/scripts/sh/banner.sh"
+  dotfiles_banner
+  _dotfiles_banner_shown=1
+
   if _dotfiles_is_truthy "$DOTFILES_CHECKOUT_ALREADY_UPDATED"; then
-    dotfiles_info "Skipping git sync; checkout already refreshed by bootstrap"
+    dotfiles_skip "git sync (checkout already refreshed by bootstrap)"
   else
+    dotfiles_step "Syncing checkout to $update_remote/$update_branch"
     dotfiles_update_checkout "$update_remote" "$update_branch" "$update_autostash"
+    dotfiles_ok "Checkout synced"
   fi
 
   run_install "$@"

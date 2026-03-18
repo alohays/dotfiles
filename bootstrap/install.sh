@@ -320,6 +320,15 @@ if [ "$command" = "checkout-only" ]; then
   exit 0
 fi
 
+# Load color helpers now that the repo is available.
+_cli_lib="$DOTFILES_TARGET/scripts/sh/cli-lib.sh"
+if [ -f "$_cli_lib" ]; then
+  DOTFILES_SH_LIB_LOADED=0
+  # shellcheck source=/dev/null
+  . "$_cli_lib"
+  dotfiles_ok "Repository ready at $DOTFILES_TARGET"
+fi
+
 repo_cmd="$DOTFILES_TARGET/bin/dotfiles"
 if is_truthy "$DOTFILES_DRY_RUN"; then
   printf '%s' '[dry-run]'
@@ -336,7 +345,11 @@ DOTFILES_CHECKOUT_ALREADY_UPDATED=0
 if [ "$command" = "update" ]; then
   DOTFILES_CHECKOUT_ALREADY_UPDATED=1
 fi
-log "Dispatching to $repo_cmd $command"
+if command -v dotfiles_step >/dev/null 2>&1; then
+  dotfiles_step "Dispatching to $repo_cmd $command"
+else
+  log "Dispatching to $repo_cmd $command"
+fi
 DOTFILES_TARGET="$DOTFILES_TARGET" \
 DOTFILES_REPO_ROOT="$DOTFILES_TARGET" \
 DOTFILES_SOURCE="$DOTFILES_REPO_URL" \
