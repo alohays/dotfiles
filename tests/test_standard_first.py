@@ -124,9 +124,9 @@ class StandardFirstTests(unittest.TestCase):
         self.assertNotIn("use_dead_keys = false", wezterm)
         self.assertNotIn("option_as_alt", alacritty)
 
-    def test_default_tool_install_set_is_rtk_only(self) -> None:
+    def test_default_tool_install_set_includes_rtk_and_nvim_plugins(self) -> None:
         content = TOOLS_SH.read_text(encoding="utf-8")
-        self.assertIn("default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk}", content)
+        self.assertIn("default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk,nvim-plugins}", content)
 
     def test_rich_aliases_only_shadow_expected_commands(self) -> None:
         content = RICH_ALIASES.read_text(encoding="utf-8")
