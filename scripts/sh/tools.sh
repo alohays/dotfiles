@@ -49,16 +49,18 @@ Supported tools:
   fast-syntax-highlighting   Clone fast-syntax-highlighting (F-Sy-H) for richer
                              syntax coloring
   fzf-git                    Clone fzf-git.sh for git-aware fzf bindings
+  nvim-plugins              Bootstrap lazy.nvim, sync plugins, and install
+                             treesitter parsers for the deployed Neovim config
 USAGE
 }
 
 dotfiles_supported_tools() {
-  printf '%s\n' rtk zsh-plugins tmux-resurrect powerlevel10k fast-syntax-highlighting fzf-git
+  printf '%s\n' rtk zsh-plugins tmux-resurrect powerlevel10k fast-syntax-highlighting fzf-git nvim-plugins
 }
 
 dotfiles_tool_exists() {
   case "${1:-}" in
-    rtk|zsh-plugins|tmux-resurrect|powerlevel10k|fast-syntax-highlighting|fzf-git)
+    rtk|zsh-plugins|tmux-resurrect|powerlevel10k|fast-syntax-highlighting|fzf-git|nvim-plugins)
       return 0
       ;;
     *)
@@ -84,6 +86,9 @@ dotfiles_detect_tool_method() {
     zsh-plugins|tmux-resurrect|powerlevel10k|fast-syntax-highlighting|fzf-git)
       printf '%s\n' git
       ;;
+    nvim-plugins)
+      printf '%s\n' nvim
+      ;;
     *)
       dotfiles_die "unsupported tool: $tool"
       ;;
@@ -95,7 +100,7 @@ dotfiles_normalize_tool_method() {
     auto|'')
       printf '%s\n' auto
       ;;
-    brew|official|git)
+    brew|official|git|nvim)
       printf '%s\n' "$1"
       ;;
     *)
@@ -130,6 +135,10 @@ dotfiles_tool_install_plan() {
       ;;
     fzf-git:git)
       printf '%s\n' "git clone junegunn/fzf-git.sh -> $ZSH_PLUGINS_DIR/fzf-git.sh"
+      ;;
+    nvim-plugins:nvim)
+      printf '%s\n' 'nvim --headless "+Lazy! sync" +qa'
+      printf '%s\n' 'nvim --headless -c "Lazy load nvim-treesitter" "+TSInstallSync! all" +qa'
       ;;
     *)
       dotfiles_die "no install plan for tool=$tool method=$method"
@@ -195,6 +204,21 @@ dotfiles_install_tool() {
       mkdir -p "$ZSH_PLUGINS_DIR"
       _dotfiles_git_clone_or_pull https://github.com/junegunn/fzf-git.sh.git "$ZSH_PLUGINS_DIR/fzf-git.sh"
       ;;
+    nvim-plugins:nvim)
+      dotfiles_has_cmd nvim || {
+        dotfiles_warn "nvim not found; skipping plugin bootstrap"
+        return 0
+      }
+      nvim_init="$HOME/.config/nvim/init.lua"
+      if [ ! -e "$nvim_init" ]; then
+        dotfiles_info "No nvim config found at $nvim_init; skipping plugin bootstrap"
+        return 0
+      fi
+      dotfiles_info "Syncing lazy.nvim plugins ..."
+      dotfiles_run nvim --headless "+Lazy! sync" +qa
+      dotfiles_info "Installing treesitter parsers ..."
+      dotfiles_run nvim --headless -c "Lazy load nvim-treesitter" "+TSInstallSync! all" +qa
+      ;;
     *)
       dotfiles_die "unsupported install request tool=$tool method=$method"
       ;;
@@ -202,7 +226,7 @@ dotfiles_install_tool() {
 }
 
 dotfiles_install_default_tools() {
-  default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk}
+  default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk,nvim-plugins}
   [ -n "$default_tools" ] || return 0
 
   for tool in $(printf '%s' "$default_tools" | tr ',' ' '); do
