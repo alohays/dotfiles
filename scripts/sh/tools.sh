@@ -138,7 +138,7 @@ dotfiles_tool_install_plan() {
       ;;
     nvim-plugins:nvim)
       printf '%s\n' 'nvim --headless "+Lazy! sync" +qa'
-      printf '%s\n' 'nvim --headless -c "Lazy load nvim-treesitter" -c "TSInstall! all" -c "sleep 60" -c qa'
+      printf '%s\n' 'nvim --headless -c "Lazy load nvim-treesitter" "+TSInstallSync! all" +qa'
       ;;
     *)
       dotfiles_die "no install plan for tool=$tool method=$method"
@@ -217,7 +217,7 @@ dotfiles_install_tool() {
       dotfiles_info "Syncing lazy.nvim plugins ..."
       dotfiles_run nvim --headless "+Lazy! sync" +qa
       dotfiles_info "Installing treesitter parsers ..."
-      dotfiles_run nvim --headless -c "Lazy load nvim-treesitter" -c "TSInstall! all" -c "sleep 60" -c qa
+      dotfiles_run nvim --headless -c "Lazy load nvim-treesitter" "+TSInstallSync! all" +qa
       ;;
     *)
       dotfiles_die "unsupported install request tool=$tool method=$method"
