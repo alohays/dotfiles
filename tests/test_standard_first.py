@@ -159,6 +159,19 @@ class StandardFirstTests(unittest.TestCase):
         content = TOOLS_SH.read_text(encoding="utf-8")
         self.assertIn("zsh-completions", content)
 
+    def test_tools_install_all_is_supported(self) -> None:
+        """The tools subcommand supports --all for install and plan."""
+        content = TOOLS_SH.read_text(encoding="utf-8")
+        self.assertIn("dotfiles_install_all_tools", content)
+        self.assertIn("dotfiles_plan_all_tools", content)
+
+    def test_tools_auth_hints_are_defined(self) -> None:
+        """Tools that need auth have hints defined."""
+        content = TOOLS_SH.read_text(encoding="utf-8")
+        self.assertIn("_dotfiles_tool_auth_hint", content)
+        for cmd in ("gws auth login", "slack login", "rtk auth login"):
+            self.assertIn(cmd, content)
+
     def test_new_nvim_plugins_exist(self) -> None:
         for name in ("bufferline.lua", "format.lua", "ai.lua"):
             path = NVIM_PLUGINS_DIR / name
