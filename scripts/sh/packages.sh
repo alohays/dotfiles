@@ -45,7 +45,7 @@ Options:
   --manager <brew|apt>       Override package manager detection
   --list                     Show resolved package sets instead of installing
   --print-plan               Print the install plan and exit
-  --all                      Equivalent to --set default,agents
+  --all                      Equivalent to --set default,agents,visual
   --help, -h                 Show this help
 USAGE
 }
