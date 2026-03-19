@@ -16,6 +16,86 @@ _dotfiles_is_truthy() {
   esac
 }
 
+# --- Color support ---
+
+_dotfiles_use_color() {
+  # Respect NO_COLOR (https://no-color.org/)
+  [ -z "${NO_COLOR:-}" ] || return 1
+  # TERM=dumb has no color support
+  [ "${TERM:-dumb}" != "dumb" ] || return 1
+  # Only colorize when stdout is a terminal
+  [ -t 1 ] || return 1
+  return 0
+}
+
+# Set color variables — empty when color is disabled.
+_dotfiles_init_colors() {
+  if _dotfiles_use_color; then
+    CLR_RED='\033[0;31m'
+    CLR_GREEN='\033[0;32m'
+    CLR_YELLOW='\033[0;33m'
+    CLR_CYAN='\033[0;36m'
+    CLR_BOLD='\033[1m'
+    CLR_BOLD_YELLOW='\033[1;33m'
+    CLR_RESET='\033[0m'
+    # Accent color: ANSI 256 color 61 (#5f5faf) with 16-color fallback
+    _tput_colors=$(tput colors 2>/dev/null) || _tput_colors=0
+    if [ "${_tput_colors:-0}" -ge 256 ] 2>/dev/null; then
+      CLR_ACCENT='\033[38;5;61m'
+    else
+      CLR_ACCENT='\033[0;34m'
+    fi
+  else
+    CLR_RED='' CLR_GREEN='' CLR_YELLOW=''
+    CLR_CYAN='' CLR_BOLD='' CLR_BOLD_YELLOW='' CLR_RESET=''
+    CLR_ACCENT=''
+  fi
+}
+
+_dotfiles_init_colors
+
+# --- Colored output helpers ---
+
+dotfiles_header() {
+  if [ -n "$CLR_CYAN" ]; then
+    printf '%b── %b%s%b ──%b\n' "$CLR_CYAN" "$CLR_BOLD" "$*" "$CLR_CYAN" "$CLR_RESET"
+  else
+    printf '%s\n' "-- $* --"
+  fi
+}
+
+dotfiles_ok() {
+  if [ -n "$CLR_GREEN" ]; then
+    printf '%b  ✓%b %s\n' "$CLR_GREEN" "$CLR_RESET" "$*"
+  else
+    printf '  ok  %s\n' "$*"
+  fi
+}
+
+dotfiles_fail() {
+  if [ -n "$CLR_RED" ]; then
+    printf '%b  ✗%b %s\n' "$CLR_RED" "$CLR_RESET" "$*" >&2
+  else
+    printf '  FAIL  %s\n' "$*" >&2
+  fi
+}
+
+dotfiles_skip() {
+  if [ -n "$CLR_YELLOW" ]; then
+    printf '%b  ⚠%b %s\n' "$CLR_YELLOW" "$CLR_RESET" "$*"
+  else
+    printf '  WARN  %s\n' "$*"
+  fi
+}
+
+dotfiles_step() {
+  if [ -n "$CLR_CYAN" ]; then
+    printf '%b  →%b %s\n' "$CLR_CYAN" "$CLR_RESET" "$*"
+  else
+    printf '  ..  %s\n' "$*"
+  fi
+}
+
 dotfiles_info() {
   printf '%s\n' "dotfiles: $*"
 }
@@ -101,7 +181,7 @@ dotfiles_setup_git_config_local() {
   fi
 
   # Bold yellow warning with manual instructions (matches wookayin/dotfiles UX).
-  printf '\033[1;33m[!!!] Please configure git %s:\033[0m\n' "$missing_desc"
+  printf '%b[!!!] Please configure git %s:%b\n' "$CLR_BOLD_YELLOW" "$missing_desc" "$CLR_RESET"
   [ -n "$existing_name" ]  || printf '    git config --file %s user.name "(YOUR NAME)"\n' "$git_config_local"
   [ -n "$existing_email" ] || printf '    git config --file %s user.email "(YOUR EMAIL)"\n' "$git_config_local"
   printf '\n'
@@ -111,7 +191,7 @@ dotfiles_setup_git_config_local() {
   git_user_email=$existing_email
 
   if [ -z "$git_user_name" ]; then
-    printf '\033[0;33m(git config user.name)  Please input your name  : \033[0m'
+    printf '%b(git config user.name)  Please input your name  : %b' "$CLR_YELLOW" "$CLR_RESET"
     read -r git_user_name || return 1
     if [ -z "$git_user_name" ]; then
       dotfiles_warn "git user.name is required"
@@ -120,7 +200,7 @@ dotfiles_setup_git_config_local() {
   fi
 
   if [ -z "$git_user_email" ]; then
-    printf '\033[0;33m(git config user.email) Please input your email : \033[0m'
+    printf '%b(git config user.email) Please input your email : %b' "$CLR_YELLOW" "$CLR_RESET"
     read -r git_user_email || return 1
     if [ -z "$git_user_email" ]; then
       dotfiles_warn "git user.email is required"
@@ -133,6 +213,6 @@ dotfiles_setup_git_config_local() {
   [ -n "$existing_email" ] || git config --file "$git_config_local" user.email "$git_user_email"
 
   # Green confirmation.
-  printf '\n\033[0;32muser.name  : %s\033[0m\n' "$git_user_name"
-  printf '\033[0;32muser.email : %s\033[0m\n' "$git_user_email"
+  printf '\n%buser.name  : %s%b\n' "$CLR_GREEN" "$git_user_name" "$CLR_RESET"
+  printf '%buser.email : %s%b\n' "$CLR_GREEN" "$git_user_email" "$CLR_RESET"
 }
