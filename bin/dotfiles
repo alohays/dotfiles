@@ -60,6 +60,7 @@ usage() {
   printf '  --non-interactive          Fail instead of prompting in delegated commands\n'
   printf '  --skip-apply               Skip the apply phase for install/update\n'
   printf '  --skip-tools               Skip default agent-tool installation for install/update\n'
+  printf '  --yolo                     Full install: rich profile + all packages + all tools + auto-yes\n'
   printf '  --help, -h                 Show this help\n'
   printf '\n'
   printf '%bCommands:%b\n' "$CLR_CYAN" "$CLR_RESET"
@@ -101,6 +102,9 @@ DOTFILES_NONINTERACTIVE=${DOTFILES_NONINTERACTIVE:-0}
 DOTFILES_SKIP_APPLY=${DOTFILES_SKIP_APPLY:-0}
 DOTFILES_SKIP_TOOLS=${DOTFILES_SKIP_TOOLS:-0}
 DOTFILES_CHECKOUT_ALREADY_UPDATED=${DOTFILES_CHECKOUT_ALREADY_UPDATED:-0}
+DOTFILES_PREFER_RICH=${DOTFILES_PREFER_RICH:-0}
+DOTFILES_ALL_PACKAGES=${DOTFILES_ALL_PACKAGES:-0}
+DOTFILES_ALL_TOOLS=${DOTFILES_ALL_TOOLS:-0}
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -129,6 +133,13 @@ while [ "$#" -gt 0 ]; do
       DOTFILES_SKIP_TOOLS=1
       shift
       ;;
+    --yolo)
+      DOTFILES_YES=1
+      DOTFILES_PREFER_RICH=1
+      DOTFILES_ALL_PACKAGES=1
+      DOTFILES_ALL_TOOLS=1
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -151,7 +162,7 @@ if [ "$#" -gt 0 ]; then
   shift
 fi
 
-export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS DOTFILES_CHECKOUT_ALREADY_UPDATED DOTFILES_REPO_ROOT=$REPO_ROOT
+export DOTFILES_DRY_RUN DOTFILES_YES DOTFILES_NONINTERACTIVE DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS DOTFILES_CHECKOUT_ALREADY_UPDATED DOTFILES_PREFER_RICH DOTFILES_ALL_PACKAGES DOTFILES_ALL_TOOLS DOTFILES_REPO_ROOT=$REPO_ROOT
 
 load_packages_support() {
   package_lib="$REPO_ROOT/scripts/sh/packages.sh"
@@ -225,8 +236,17 @@ run_install() {
   fi
 
   if _dotfiles_is_truthy "$DOTFILES_SKIP_TOOLS"; then
-    dotfiles_skip "default agent tools (--skip-tools)"
+    dotfiles_skip "agent tools (--skip-tools)"
     _install_skip=$(( _install_skip + 1 ))
+  elif _dotfiles_is_truthy "$DOTFILES_ALL_TOOLS"; then
+    dotfiles_step "Installing ALL agent tools (yolo)"
+    if load_tools_support && dotfiles_install_all_tools; then
+      dotfiles_ok "All agent tools installed"
+      _install_ok=$(( _install_ok + 1 ))
+    else
+      dotfiles_fail "Agent tools installation had failures"
+      _install_fail=$(( _install_fail + 1 ))
+    fi
   else
     dotfiles_step "Installing default tools"
     if load_tools_support && dotfiles_install_default_tools; then
@@ -234,6 +254,17 @@ run_install() {
       _install_ok=$(( _install_ok + 1 ))
     else
       dotfiles_fail "Default tools installation failed"
+      _install_fail=$(( _install_fail + 1 ))
+    fi
+  fi
+
+  if _dotfiles_is_truthy "$DOTFILES_ALL_PACKAGES"; then
+    dotfiles_step "Installing ALL packages (yolo)"
+    if load_packages_support && dotfiles_packages_main --all; then
+      dotfiles_ok "All packages installed"
+      _install_ok=$(( _install_ok + 1 ))
+    else
+      dotfiles_fail "Package installation had failures"
       _install_fail=$(( _install_fail + 1 ))
     fi
   fi
