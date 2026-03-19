@@ -135,6 +135,15 @@ def resolve_profile(repo_root: Path, manifest: dict[str, Any], profile_name: str
         else:
             effective_name = default_profiles.get("linux", "linux-desktop")
 
+        # --yolo / DOTFILES_PREFER_RICH: upgrade to rich variant if available.
+        # Skipped when profile was explicitly specified or resolved to ssh-server.
+        if os.environ.get("DOTFILES_PREFER_RICH", "0") in ("1", "true", "yes"):
+            ssh_profile = default_profiles.get("ssh", "ssh-server")
+            if effective_name != ssh_profile:
+                rich_candidate = f"{effective_name}-rich"
+                if (repo_root / "profiles" / f"{rich_candidate}.json").is_file():
+                    effective_name = rich_candidate
+
     cache: dict[str, dict[str, Any]] = {}
     resolving: set[str] = set()
 
