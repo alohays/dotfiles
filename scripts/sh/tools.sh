@@ -91,9 +91,12 @@ default environment shipped by this repo.
 Subcommands:
   list                       Show supported tools
   install <tool>             Install a tool
+  install --all              Install all supported tools
   plan <tool>                Print how a tool would be installed
+  plan --all                 Print plans for all supported tools
 
 Options for install/plan:
+  --all                              Install/plan all supported tools
   --method <auto|brew|official|git>   Select install method (default: auto)
   --help, -h                          Show this help
 
@@ -129,6 +132,20 @@ dotfiles_tool_exists() {
       return 1
       ;;
   esac
+}
+
+_dotfiles_tool_auth_hint() {
+  case "${1:-}" in
+    googleworkspace-cli) printf '%s\n' "gws auth login" ;;
+    slack-cli)           printf '%s\n' "slack login" ;;
+    rtk)                 printf '%s\n' "rtk auth login" ;;
+    *)                   return 1 ;;
+  esac
+}
+
+_dotfiles_show_auth_hint() {
+  auth_cmd=$(_dotfiles_tool_auth_hint "$1") || return 0
+  dotfiles_info "Authenticate: $auth_cmd"
 }
 
 dotfiles_detect_tool_method() {
@@ -366,6 +383,72 @@ dotfiles_install_default_tools() {
   done
 }
 
+dotfiles_install_all_tools() {
+  override_method=${1:-auto}
+  _tools_ok=0
+  _tools_fail=0
+  _tools_total=0
+  _tools_need_auth=""
+
+  for _iat_tool in $(dotfiles_supported_tools); do
+    _tools_total=$(( _tools_total + 1 ))
+    if [ "$override_method" = auto ]; then
+      _iat_method=$(dotfiles_detect_tool_method "$_iat_tool")
+    else
+      _iat_method=$override_method
+    fi
+    dotfiles_step "Installing $_iat_tool ($_iat_method)"
+    if dotfiles_install_tool "$_iat_tool" "$_iat_method"; then
+      dotfiles_ok "$_iat_tool"
+      _tools_ok=$(( _tools_ok + 1 ))
+      _dotfiles_show_auth_hint "$_iat_tool"
+      # Build newline-separated list (literal newline inside ${:+} is intentional).
+      _tools_auth_cmd=$(_dotfiles_tool_auth_hint "$_iat_tool") && \
+        _tools_need_auth="${_tools_need_auth:+$_tools_need_auth
+}  $_tools_auth_cmd"
+    else
+      dotfiles_fail "$_iat_tool"
+      _tools_fail=$(( _tools_fail + 1 ))
+    fi
+  done
+
+  if _dotfiles_is_truthy "${DOTFILES_DRY_RUN:-0}"; then
+    dotfiles_header "Tools install dry-run complete"
+  else
+    dotfiles_header "Tools install complete"
+  fi
+  if [ -n "${CLR_GREEN:-}" ]; then
+    printf '%b  ✓ %d installed%b · %b✗ %d failed%b (of %d)\n' \
+      "$CLR_GREEN" "$_tools_ok" "$CLR_RESET" \
+      "$CLR_RED" "$_tools_fail" "$CLR_RESET" \
+      "$_tools_total"
+  else
+    printf '  ok %d installed · FAIL %d failed (of %d)\n' \
+      "$_tools_ok" "$_tools_fail" "$_tools_total"
+  fi
+
+  if [ -n "$_tools_need_auth" ]; then
+    printf '\n'
+    dotfiles_info "The following tools need authentication:"
+    printf '%s\n' "$_tools_need_auth"
+  fi
+
+  [ "$_tools_fail" -eq 0 ]
+}
+
+dotfiles_plan_all_tools() {
+  override_method=${1:-auto}
+  for _pat_tool in $(dotfiles_supported_tools); do
+    if [ "$override_method" = auto ]; then
+      _pat_method=$(dotfiles_detect_tool_method "$_pat_tool")
+    else
+      _pat_method=$override_method
+    fi
+    printf '%s (%s):\n' "$_pat_tool" "$_pat_method"
+    dotfiles_tool_install_plan "$_pat_tool" "$_pat_method" | sed 's/^/  /'
+  done
+}
+
 dotfiles_tools_main() {
   subcommand=${1:-list}
   if [ "$#" -gt 0 ]; then
@@ -374,6 +457,7 @@ dotfiles_tools_main() {
 
   method=auto
   tool=
+  all_tools=0
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --method)
@@ -384,6 +468,10 @@ dotfiles_tools_main() {
       --help|-h)
         dotfiles_tools_usage
         return 0
+        ;;
+      --all)
+        all_tools=1
+        shift
         ;;
       --)
         shift
@@ -404,15 +492,27 @@ dotfiles_tools_main() {
       dotfiles_supported_tools
       ;;
     install|plan)
-      [ -n "$tool" ] || dotfiles_die "$subcommand requires a tool name"
-      dotfiles_tool_exists "$tool" || dotfiles_die "unsupported tool: $tool"
-      if [ "$method" = auto ]; then
-        method=$(dotfiles_detect_tool_method "$tool")
+      if [ "$all_tools" -eq 1 ] && [ -n "$tool" ]; then
+        dotfiles_die "--all and a tool name are mutually exclusive"
       fi
-      if [ "$subcommand" = plan ]; then
-        dotfiles_tool_install_plan "$tool" "$method"
+      if [ "$all_tools" -eq 1 ]; then
+        if [ "$subcommand" = plan ]; then
+          dotfiles_plan_all_tools "$method"
+        else
+          dotfiles_install_all_tools "$method"
+        fi
       else
-        dotfiles_install_tool "$tool" "$method"
+        [ -n "$tool" ] || dotfiles_die "$subcommand requires a tool name (or use --all)"
+        dotfiles_tool_exists "$tool" || dotfiles_die "unsupported tool: $tool"
+        if [ "$method" = auto ]; then
+          method=$(dotfiles_detect_tool_method "$tool")
+        fi
+        if [ "$subcommand" = plan ]; then
+          dotfiles_tool_install_plan "$tool" "$method"
+        else
+          dotfiles_install_tool "$tool" "$method"
+          _dotfiles_show_auth_hint "$tool"
+        fi
       fi
       ;;
     *)

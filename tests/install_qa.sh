@@ -235,6 +235,18 @@ assert_tool_plan() {
   }
 }
 
+assert_tool_plan_all() {
+  home_dir=$1
+  plan_output=$(HOME="$home_dir" XDG_STATE_HOME="$home_dir/.local/state" \
+    "$home_dir/.dotfiles/bin/dotfiles" tools plan --all)
+  for tool in rtk zsh-plugins tmux-resurrect powerlevel10k \
+    fast-syntax-highlighting fzf-git nvim-plugins \
+    googleworkspace-cli agent-browser slack-cli; do
+    printf '%s\n' "$plan_output" | grep -q "^${tool} " || \
+      die "tool plan --all missing tool: $tool"
+  done
+}
+
 assert_default_tool_installed() {
   home_dir=$1
   assert_exists "$home_dir/.local/bin/rtk"
@@ -702,6 +714,7 @@ scenario_end_to_end_flows() {
   assert_inventory_profile "$home_dir/.local/state/alohays-dotfiles/managed-targets.json" linux-desktop
   assert_package_plan "$home_dir"
   assert_tool_plan "$home_dir"
+  assert_tool_plan_all "$home_dir"
   assert_default_tool_installed "$home_dir"
   assert_shell_command_resolution bash "$home_dir" "$fake_brew_prefix"
   assert_shell_command_resolution zsh "$home_dir" "$fake_brew_prefix"
