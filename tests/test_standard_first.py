@@ -135,6 +135,26 @@ class StandardFirstTests(unittest.TestCase):
         self.assertNotIn("alias top=", content)
         self.assertNotIn("alias grep=", content)
 
+    def test_agent_cli_tools_are_registered_and_opt_in(self) -> None:
+        """Agent CLI tools are registered but not in the default install set."""
+        content = TOOLS_SH.read_text(encoding="utf-8")
+        for tool in ("googleworkspace-cli", "agent-browser", "slack-cli"):
+            with self.subTest(tool=tool):
+                self.assertIn(tool, content)
+        self.assertIn(
+            "default_tools=${DOTFILES_DEFAULT_AGENT_TOOLS:-rtk,nvim-plugins}", content
+        )
+
+    def test_agent_cli_tool_plans_show_correct_methods(self) -> None:
+        """Agent CLI tool plans show brew and official install commands."""
+        content = TOOLS_SH.read_text(encoding="utf-8")
+        self.assertIn("brew install googleworkspace-cli", content)
+        self.assertIn("brew install agent-browser", content)
+        self.assertIn("brew install --cask slack-cli", content)
+        self.assertIn("npm install -g agent-browser", content)
+        self.assertIn("download gws binary", content)
+        self.assertIn("download slack binary", content)
+
     def test_zsh_plugins_tool_includes_completions(self) -> None:
         content = TOOLS_SH.read_text(encoding="utf-8")
         self.assertIn("zsh-completions", content)
