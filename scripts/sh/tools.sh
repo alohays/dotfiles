@@ -23,6 +23,64 @@ _dotfiles_validate_rtk_url() {
 ZSH_PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 TMUX_PLUGINS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/plugins"
 
+_dotfiles_detect_arch() {
+  arch=$(uname -m 2>/dev/null || printf 'unknown')
+  case "$arch" in
+    x86_64|amd64) printf 'x86_64' ;;
+    aarch64|arm64) printf 'aarch64' ;;
+    *) printf '%s' "$arch" ;;
+  esac
+}
+
+_dotfiles_install_brew_formula() {
+  dotfiles_has_cmd brew || dotfiles_die "brew is required (brew not found)"
+  dotfiles_run brew install "$1"
+}
+
+_dotfiles_install_brew_cask() {
+  dotfiles_has_cmd brew || dotfiles_die "brew is required (brew not found)"
+  dotfiles_run brew install --cask "$1"
+}
+
+_dotfiles_install_github_binary() {
+  # Usage: _dotfiles_install_github_binary <url> <binary_name> [strip_components]
+  # Extracts tarball and locates binary by name. Uses direct path first,
+  # falls back to find(1) for archives with nested bin/ directories
+  # (e.g., slack-cli macOS tarballs use ./bin/slack layout).
+  url=$1; binary_name=$2; strip=${3:-0}
+  dotfiles_has_cmd curl || dotfiles_die "curl is required for binary download"
+  dotfiles_has_cmd tar  || dotfiles_die "tar is required for binary download"
+  install_dir="$HOME/.local/bin"
+  mkdir -p "$install_dir"
+  tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-tool.XXXXXX")
+  dotfiles_info "Downloading $binary_name ..."
+  if ! curl -fsSL "$url" -o "$tmp_dir/archive.tar.gz"; then
+    rm -rf "$tmp_dir"
+    dotfiles_die "failed to download $binary_name"
+  fi
+  if ! tar xzf "$tmp_dir/archive.tar.gz" -C "$tmp_dir" --strip-components="$strip"; then
+    rm -rf "$tmp_dir"
+    dotfiles_die "failed to extract $binary_name"
+  fi
+  if [ -f "$tmp_dir/$binary_name" ]; then
+    binary_path="$tmp_dir/$binary_name"
+  else
+    binary_path=$(find "$tmp_dir" -name "$binary_name" -type f | head -1)
+  fi
+  if [ -z "$binary_path" ] || [ ! -f "$binary_path" ]; then
+    rm -rf "$tmp_dir"
+    dotfiles_die "binary $binary_name not found in archive"
+  fi
+  chmod +x "$binary_path"
+  mv "$binary_path" "$install_dir/$binary_name"
+  rm -rf "$tmp_dir"
+}
+
+_dotfiles_install_npm_global() {
+  dotfiles_has_cmd npm || dotfiles_die "npm is required to install $1 (install Node.js first)"
+  dotfiles_run npm install -g "$1"
+}
+
 dotfiles_tools_usage() {
   cat <<USAGE
 Usage: bin/dotfiles tools <subcommand> [options]
@@ -51,16 +109,20 @@ Supported tools:
   fzf-git                    Clone fzf-git.sh for git-aware fzf bindings
   nvim-plugins              Bootstrap lazy.nvim, sync plugins, and install
                              treesitter parsers for the deployed Neovim config
+  googleworkspace-cli        Install Google Workspace CLI (brew or binary;
+                             conflicts with gws package)
+  agent-browser              Install Vercel agent-browser (brew or npm)
+  slack-cli                  Install Slack CLI (brew or binary)
 USAGE
 }
 
 dotfiles_supported_tools() {
-  printf '%s\n' rtk zsh-plugins tmux-resurrect powerlevel10k fast-syntax-highlighting fzf-git nvim-plugins
+  printf '%s\n' rtk zsh-plugins tmux-resurrect powerlevel10k fast-syntax-highlighting fzf-git nvim-plugins googleworkspace-cli agent-browser slack-cli
 }
 
 dotfiles_tool_exists() {
   case "${1:-}" in
-    rtk|zsh-plugins|tmux-resurrect|powerlevel10k|fast-syntax-highlighting|fzf-git|nvim-plugins)
+    rtk|zsh-plugins|tmux-resurrect|powerlevel10k|fast-syntax-highlighting|fzf-git|nvim-plugins|googleworkspace-cli|agent-browser|slack-cli)
       return 0
       ;;
     *)
@@ -88,6 +150,17 @@ dotfiles_detect_tool_method() {
       ;;
     nvim-plugins)
       printf '%s\n' nvim
+      ;;
+    googleworkspace-cli|agent-browser|slack-cli)
+      if [ "${DOTFILES_TOOLS_DEFAULT_METHOD:-auto}" = "official" ]; then
+        printf '%s\n' official
+      elif [ "${DOTFILES_TOOLS_DEFAULT_METHOD:-auto}" = "brew" ]; then
+        printf '%s\n' brew
+      elif dotfiles_has_cmd brew; then
+        printf '%s\n' brew
+      else
+        printf '%s\n' official
+      fi
       ;;
     *)
       dotfiles_die "unsupported tool: $tool"
@@ -140,6 +213,24 @@ dotfiles_tool_install_plan() {
       printf '%s\n' 'nvim --headless "+Lazy! sync" +qa'
       printf '%s\n' 'nvim --headless -c "Lazy load nvim-treesitter" "+TSInstallSync! all" +qa'
       ;;
+    googleworkspace-cli:brew)
+      printf '%s\n' 'brew install googleworkspace-cli'
+      ;;
+    googleworkspace-cli:official)
+      printf '%s\n' 'download gws binary from GitHub Releases -> ~/.local/bin/gws'
+      ;;
+    agent-browser:brew)
+      printf '%s\n' 'brew install agent-browser'
+      ;;
+    agent-browser:official)
+      printf '%s\n' 'npm install -g agent-browser'
+      ;;
+    slack-cli:brew)
+      printf '%s\n' 'brew install --cask slack-cli'
+      ;;
+    slack-cli:official)
+      printf '%s\n' 'download slack binary from GitHub Releases -> ~/.local/bin/slack'
+      ;;
     *)
       dotfiles_die "no install plan for tool=$tool method=$method"
       ;;
@@ -169,8 +260,7 @@ dotfiles_install_tool() {
 
   case "$tool:$method" in
     rtk:brew)
-      dotfiles_has_cmd brew || dotfiles_die "brew is required for method=brew"
-      dotfiles_run brew install rtk
+      _dotfiles_install_brew_formula rtk
       ;;
     rtk:official)
       dotfiles_has_cmd curl || dotfiles_die "curl is required for method=official"
@@ -218,6 +308,44 @@ dotfiles_install_tool() {
       dotfiles_run nvim --headless "+Lazy! sync" +qa
       dotfiles_info "Installing treesitter parsers ..."
       dotfiles_run nvim --headless -c "Lazy load nvim-treesitter" "+TSInstallSync! all" +qa
+      ;;
+    googleworkspace-cli:brew)
+      _dotfiles_install_brew_formula googleworkspace-cli
+      ;;
+    googleworkspace-cli:official)
+      arch=$(_dotfiles_detect_arch)
+      case "$(uname -s):$arch" in
+        Darwin:aarch64) _target="gws-aarch64-apple-darwin" ;;
+        Darwin:x86_64)  _target="gws-x86_64-apple-darwin" ;;
+        Linux:x86_64)   _target="gws-x86_64-unknown-linux-gnu" ;;
+        Linux:aarch64)  _target="gws-aarch64-unknown-linux-gnu" ;;
+        *) dotfiles_die "unsupported platform for googleworkspace-cli: $(uname -s)/$arch" ;;
+      esac
+      _dotfiles_install_github_binary \
+        "https://github.com/googleworkspace/cli/releases/latest/download/${_target}.tar.gz" \
+        "gws" 1
+      ;;
+    agent-browser:brew)
+      _dotfiles_install_brew_formula agent-browser
+      ;;
+    agent-browser:official)
+      _dotfiles_install_npm_global agent-browser
+      ;;
+    slack-cli:brew)
+      _dotfiles_install_brew_cask slack-cli
+      ;;
+    slack-cli:official)
+      arch=$(_dotfiles_detect_arch)
+      case "$(uname -s):$arch" in
+        Linux:x86_64)   _target="slack_cli_latest_linux_64-bit" ;;
+        Darwin:x86_64)  _target="slack_cli_latest_macOS_64-bit" ;;
+        Darwin:aarch64) _target="slack_cli_latest_macOS_arm64" ;;
+        Linux:aarch64)  dotfiles_die "slack-cli does not provide a Linux arm64 binary" ;;
+        *) dotfiles_die "unsupported platform for slack-cli: $(uname -s)/$arch" ;;
+      esac
+      _dotfiles_install_github_binary \
+        "https://github.com/slackapi/slack-cli/releases/latest/download/${_target}.tar.gz" \
+        "slack" 0
       ;;
     *)
       dotfiles_die "unsupported install request tool=$tool method=$method"
