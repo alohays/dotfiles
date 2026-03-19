@@ -153,19 +153,32 @@ Rich profiles ship 37 neovim plugins for wookayin-level visual richness. All plu
 - `:DiffviewOpen`, `:DiffviewFileHistory`
 - `:LspInfo`, `:Mason`
 
-## Full setup one-liner
+## Full setup: one command
 
 For maximum richness from a fresh install:
 
 ```sh
-dotfiles apply --profile macos-desktop-rich && \
-dotfiles tools install powerlevel10k && \
-dotfiles tools install fast-syntax-highlighting && \
-dotfiles tools install fzf-git && \
-dotfiles packages --set visual
+dotfiles --yolo install
 ```
 
+This applies the rich profile, installs all packages (`default` + `agents` +
+`visual` tiers), and all 10 agent tools in one shot.
+
+<details>
+<summary>Equivalent explicit commands</summary>
+
+```sh
+dotfiles apply --profile macos-desktop-rich && \
+dotfiles tools install --all && \
+dotfiles packages --all
+```
+
+</details>
+
 ## Opt-in prompt activation
+
+If you used `dotfiles --yolo install`, the rich profile is already applied.
+Manual profile switching is only needed for selective upgrades or downgrades:
 
 Apply the rich desktop profile when you want terminal + prompt polish:
 

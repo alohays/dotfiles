@@ -30,6 +30,9 @@ bootstrap/install.sh  ->  Clone/update repo, dispatch to bin/dotfiles
 bin/dotfiles          ->  CLI wrapper, routes to Python engine + shell tools
 scripts/dotfiles.py   ->  Apply engine: profiles, symlinks, inventory, migration
 scripts/sh/cli-lib.sh ->  Shell utilities for the CLI (install-time only)
+scripts/sh/tools.sh   ->  Agent tool installer with bulk --all support
+scripts/sh/packages.sh -> Package tier installer (default, agents, visual)
+scripts/sh/banner.sh  ->  Colored ASCII banner and status output
 manifests/            ->  Module registry (manifest.json)
 profiles/             ->  Profile definitions with inheritance (*.json)
 modules/              ->  Config payloads organized by concern
@@ -48,6 +51,22 @@ modules/              ->  Config payloads organized by concern
 2. Profiles in `profiles/*.json` declare which modules to include, with inheritance via `extends`
 3. Auto-detection selects a profile based on OS and SSH status
 4. The apply engine creates symlinks from module files to `$HOME`
+
+### Environment Variables
+
+The CLI uses `DOTFILES_*` environment variables for cross-layer coordination.
+The `--yolo` flag is sugar that sets all four at once:
+
+| Variable | Effect |
+|----------|--------|
+| `DOTFILES_PREFER_RICH` | Upgrade auto-detected profile to rich variant |
+| `DOTFILES_ALL_PACKAGES` | Install all package tiers during install |
+| `DOTFILES_ALL_TOOLS` | Install all agent tools during install |
+| `DOTFILES_YES` | Auto-approve interactive prompts |
+
+Other flags: `DOTFILES_DRY_RUN`, `DOTFILES_SKIP_APPLY`, `DOTFILES_SKIP_TOOLS`,
+`DOTFILES_NONINTERACTIVE`. All default to `0` and follow the pattern
+`DOTFILES_VAR=${DOTFILES_VAR:-0}`.
 
 ### Adding a New Module
 

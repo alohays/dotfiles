@@ -49,7 +49,22 @@ cd ~/.dotfiles
 - Python 3.11+
 - git
 
-### Optional: Unlock the Rich Experience
+### Full Setup: One Command
+
+Already know you want everything? Rich profile, all packages, all tools:
+
+```sh
+dotfiles --yolo install
+```
+
+Auto-detects your OS, applies the rich profile (`macos-desktop-rich` or
+`linux-desktop-rich`), installs all package tiers and all 10 agent tools,
+and auto-approves prompts. SSH servers stay on the `ssh-server` profile.
+
+Override individual phases with `--skip-tools`, `--skip-apply`, or
+`--profile <name>`. Preview what would happen with `--dry-run`.
+
+### Optional: Unlock the Rich Experience (Step by Step)
 
 The base install gives you a clean, agent-friendly environment. If you also
 want Powerlevel10k prompts, syntax highlighting, and colorized CLI tools,
@@ -73,12 +88,13 @@ categories, font guidance, and keybinding reference.
 | | Feature | Details |
 |---|---|---|
 | :rocket: | **One-command bootstrap** | Auto-detects macOS, Linux, or SSH — applies the right profile |
+| :fire: | **Yolo mode** | One command: rich profile + all packages + all tools |
 | :brain: | **Agent-first defaults** | Stock keymaps, no aliases, no traps — agents just work |
 | :art: | **37 Neovim plugins** | Lazy-loaded, zero custom keybindings, LSP + completion + treesitter |
 | :zap: | **Powerlevel10k prompt** | Instant prompt, cloud segments (AWS/GCloud/Azure), transient mode |
 | :package: | **10 installable tools** | RTK, agent-browser, slack-cli, googleworkspace-cli, fzf-git, and more |
 | :shield: | **Timestamped backups** | Existing configs are backed up before any replacement |
-| :test_tube: | **66 isolated tests** | Temp-HOME sandboxing — never touches your live dotfiles |
+| :test_tube: | **78 isolated tests** | Temp-HOME sandboxing — never touches your live dotfiles |
 | :paintbrush: | **Colored CLI** | ASCII banner with status indicators during install/update |
 | :lock: | **Secrets stay local** | Git identity, shell overrides, SSH config — never committed |
 | :arrows_counterclockwise: | **Auto-migration** | Recovers legacy zsh configs into local overlays automatically |
@@ -99,7 +115,7 @@ categories, font guidance, and keybinding reference.
 | Local override pattern | Built-in | Templates | Alt files | Manual |
 | Interactive git identity setup | ✅ | ❌ | ❌ | ❌ |
 | Timestamped backups | ✅ | ❌ | ❌ | ❌ |
-| Isolated test suite | 66 tests | ✅ | ❌ | ❌ |
+| Isolated test suite | 78 tests | ✅ | ❌ | ❌ |
 
 ---
 
@@ -227,8 +243,13 @@ shells expose `python`/`pip` aliases automatically.
 | tmux-resurrect | Session persistence | `dotfiles tools install tmux-resurrect` |
 
 List all tools with `dotfiles tools list`. Preview what an install does
-before running it with `dotfiles tools plan <name>`. Skip default tool
-installation during bootstrap with `dotfiles install --skip-tools`.
+before running it with `dotfiles tools plan <name>`.
+
+Install all tools at once with `dotfiles tools install --all`. Preview
+all plans with `dotfiles tools plan --all`. Tools that need authentication
+(rtk, googleworkspace-cli, slack-cli) show their auth commands after
+install. If a tool fails, installation continues for the rest and reports
+a summary at the end.
 
 ### Package Tiers
 
