@@ -118,7 +118,7 @@ This installs `eza`, `bat`, and `tree`. Rich profiles then activate these aliase
 
 ## Rich neovim
 
-Rich profiles ship ~28 neovim plugins for wookayin-level visual richness. All plugins use lazy loading and **zero custom keybindings** — only stock neovim 0.10+ defaults.
+Rich profiles ship 37 neovim plugins for wookayin-level visual richness. All plugins use lazy loading and **zero custom keybindings** — only stock neovim 0.10+ defaults.
 
 ### Plugin categories
 

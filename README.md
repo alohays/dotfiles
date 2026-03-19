@@ -1,114 +1,41 @@
 # alohays/dotfiles
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white) ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black) ![Zsh](https://img.shields.io/badge/Zsh-F15A24?logo=zsh&logoColor=white) ![Neovim](https://img.shields.io/badge/Neovim-57A143?logo=neovim&logoColor=white)
+
 <img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/73bc2ddc-ae63-4cd5-b210-bcd29fb5dcd8" />
 
-Standard-first, agent-friendly dotfiles for macOS, Linux desktops, and SSH/no-sudo servers — designed for coding agents that want boring defaults and humans who still want a beautiful terminal.
+Agent-first dotfiles for macOS, Linux desktops, and SSH servers.
+Boring defaults for coding agents, beautiful terminals for humans.
 
-## Quick start
+---
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/alohays/dotfiles/main/bootstrap/install.sh | sh -s --
-```
+## Table of Contents
 
-This clones the repo into `~/.dotfiles`, detects your environment (macOS desktop / Linux desktop / SSH server), applies the matching profile, and installs default agent tools. Existing configs are backed up automatically.
+- [Quick Start](#-quick-start)
+- [What You Get](#-what-you-get)
+- [Comparison](#-comparison)
+- [Why Agent-First?](#-why-agent-first)
+- [Profiles](#-profiles)
+- [Neovim, Shell & Tools](#%EF%B8%8F-neovim-shell--tools)
+- [Update & Maintain](#-update--maintain)
+- [Acknowledgments](#-acknowledgments)
+- [License](#-license)
 
-### Requirements
+---
 
-- macOS 10.15+ or Linux (Debian/Ubuntu tested)
-- Python 3.11+ (for the apply engine)
-- git
-
-### Comparison
-
-| | alohays/dotfiles | chezmoi | yadm | GNU stow |
-|---|---|---|---|---|
-| Agent-first defaults | Yes | No | No | No |
-| Profile-based configs | Yes (6 profiles) | Templates | No | No |
-| Auto-migration from legacy | Yes | No | No | No |
-| Local override pattern | Built-in | Via templates | Via alt files | Manual |
-| No custom keybindings | By design | N/A | N/A | N/A |
-
-## Why this repo exists
-
-This repo is a fresh AI-era reset with a sincere shoutout to [`wookayin/dotfiles`](https://github.com/wookayin/dotfiles), a beloved long-time inspiration. That style of thoughtful, personal, deeply polished dotfiles is still something I admire.
-
-But the constraints have changed. Many pre-AI-era dotfiles were optimized for one expert human who already knew every alias, every remapped keybinding, every shell hook, and every visual convention by heart. Coding agents such as Claude Code, Codex CLI, and Gemini CLI usually do not. Command-shadowing aliases, custom keymaps, surprise shell traps, and excessive customization are all harder for agents to infer. They add hidden state, consume extra context/tokens, and can reduce agent performance.
-
-So the goal here is simple: optimize for coding agents first, humans second. That means a predictable, upstream-shaped, token-efficient baseline for agents, plus explicit polish and convenience for humans. It also means this repo should install agent-helpful tools by default when they materially improve how agents work.
-
-## What this repo optimizes for
-
-### Priority 1: agents
-
-- default CLI behavior instead of surprising aliases
-- stock tmux prefix and keymap
-- no default shell, terminal, or editor shortcut remaps
-- standard file locations and a predictable bootstrap/apply flow
-- token-efficient environments with less hidden state and less explanation overhead
-- default installation of agent-helpful tools such as RTK when they materially improve agent performance
-- isolated temp-`HOME` testing so development never mutates live `~/.dotfiles`
-
-### Priority 2: humans
-
-- a comfortable, still-beautiful TUI-first experience
-- optional visual polish instead of mandatory theme stacks
-- one-command bootstrap plus easy re-apply/update flows
-- one-command useful-tool installation through explicit package tiers
-- local overrides and secrets kept out of the tracked repo
-
-## Philosophy
-
-This repo is meant to be boring in the right places and opinionated in the useful ones:
-- keep defaults close to upstream behavior
-- avoid command-shadowing aliases and surprise shell traps
-- keep tmux on the stock prefix and keymap
-- keep shell/editor shortcut remaps and workflow plugins opt-in
-- make visual polish opt-in instead of forcing themes everywhere
-- install proven agent-helpful tools by default when they measurably help coding agents work better
-- replace older dotfiles installs cleanly, with one confirmation and backups
-- keep secrets and host-local overrides outside the tracked repo
-
-## v1 profile baseline
-
-v1 targets three baseline environments:
-- **macOS desktop**
-- **Ubuntu/Debian-like Linux desktop**
-- **SSH/no-sudo server**
-
-The intended install path is `~/.dotfiles`.
-
-Profiles resolve from the manifest/apply engine and choose a safe baseline first. Visual extras stay explicit and optional.
-
-## Repo shape
-
-The planned v1 layout is:
-
-```text
-bootstrap/install.sh
-bin/dotfiles
-scripts/dotfiles.py
-manifests/manifest.json
-profiles/*.json
-zsh/
-modules/core/
-modules/tmux/
-modules/nvim/
-modules/visual/
-modules/terminal/
-modules/prompt/
-modules/ssh-server/
-tests/
-```
-
-## Install
-
-### Remote bootstrap
+## ⚡ Quick Start
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/alohays/dotfiles/main/bootstrap/install.sh | sh -s --
 ```
 
-### Local checkout
+This clones the repo into `~/.dotfiles`, auto-detects your environment
+(macOS desktop / Linux desktop / SSH server), applies the matching profile,
+installs default agent tools, and backs up existing configs with timestamps.
+If an older dotfiles checkout already exists, the installer detects it,
+asks once before replacing, and creates a timestamped backup.
+
+**From a local clone:**
 
 ```sh
 git clone git@github.com:alohays/dotfiles.git ~/.dotfiles
@@ -116,152 +43,238 @@ cd ~/.dotfiles
 ./bootstrap/install.sh
 ```
 
-The bootstrap flow clones or updates the repo, detects the baseline environment, applies the selected profile into the current `HOME`, and installs the default agent-tool set.
+**Requirements:**
 
-## Update and re-apply
+- macOS 10.15+ or Linux (Debian/Ubuntu)
+- Python 3.11+
+- git
 
-After the repo is installed in `~/.dotfiles`, new login shells should have `dotfiles` on `PATH` via `$DOTFILES_HOME/bin`. If you're still in the shell that ran bootstrap, either start a new login shell or keep using `~/.dotfiles/bin/dotfiles` directly:
+### Optional: Unlock the Rich Experience
 
-```sh
-dotfiles update
-dotfiles apply
-```
-
-`dotfiles update` now syncs the checkout to `origin/main` by default (or `$DOTFILES_BRANCH` when set), auto-stashes local checkout changes if needed, and then re-applies the repo. Auto-stashed checkout changes stay in `git stash` for manual review or restore (`git stash list`, `git stash pop`).
-
-If you want the quickest re-sync and do not need to re-check default tool installation, use the upstream-inspired fast path:
+The base install gives you a clean, agent-friendly environment. If you also
+want Powerlevel10k prompts, syntax highlighting, and colorized CLI tools,
+apply a rich profile and install the extras:
 
 ```sh
-dotfiles update --fast
+dotfiles apply --profile macos-desktop-rich   # or linux-desktop-rich
+dotfiles tools install powerlevel10k
+dotfiles tools install fast-syntax-highlighting
+dotfiles tools install fzf-git
+dotfiles packages --set visual
 ```
 
-For branch/remote overrides or to disable auto-stashing, see `dotfiles update --help`.
+See [docs/visual.md](docs/visual.md) for the full visual guide, plugin
+categories, font guidance, and keybinding reference.
 
-For explicit profile selection, use the apply command with the profile you want, for example:
+---
+
+## ✨ What You Get
+
+| | Feature | Details |
+|---|---|---|
+| :rocket: | **One-command bootstrap** | Auto-detects macOS, Linux, or SSH — applies the right profile |
+| :brain: | **Agent-first defaults** | Stock keymaps, no aliases, no traps — agents just work |
+| :art: | **37 Neovim plugins** | Lazy-loaded, zero custom keybindings, LSP + completion + treesitter |
+| :zap: | **Powerlevel10k prompt** | Instant prompt, cloud segments (AWS/GCloud/Azure), transient mode |
+| :package: | **10 installable tools** | RTK, agent-browser, slack-cli, googleworkspace-cli, fzf-git, and more |
+| :shield: | **Timestamped backups** | Existing configs are backed up before any replacement |
+| :test_tube: | **66 isolated tests** | Temp-HOME sandboxing — never touches your live dotfiles |
+| :paintbrush: | **Colored CLI** | ASCII banner with status indicators during install/update |
+| :lock: | **Secrets stay local** | Git identity, shell overrides, SSH config — never committed |
+| :arrows_counterclockwise: | **Auto-migration** | Recovers legacy zsh configs into local overlays automatically |
+
+---
+
+## 🆚 Comparison
+
+| | alohays/dotfiles | chezmoi | yadm | GNU stow |
+|---|:---:|:---:|:---:|:---:|
+| Agent-first defaults | ✅ | ❌ | ❌ | ❌ |
+| Profile-based configs | 6 profiles | Templates | ❌ | ❌ |
+| One-command bootstrap | ✅ | ✅ | ✅ | ❌ |
+| Auto environment detection | ✅ | ❌ | ❌ | ❌ |
+| Neovim plugin layer | 37 plugins | N/A | N/A | N/A |
+| Agent tool installer | 10 tools | ❌ | ❌ | ❌ |
+| Auto-migration from legacy | ✅ | ❌ | ❌ | ❌ |
+| Local override pattern | Built-in | Templates | Alt files | Manual |
+| Interactive git identity setup | ✅ | ❌ | ❌ | ❌ |
+| Timestamped backups | ✅ | ❌ | ❌ | ❌ |
+| Isolated test suite | 66 tests | ✅ | ❌ | ❌ |
+
+---
+
+## 🧠 Why Agent-First?
+
+Pre-AI dotfiles were optimized for one expert human who already knew every
+alias, keybinding, and shell hook by heart. Coding agents like Claude Code,
+Codex CLI, and Gemini CLI do not share that muscle memory.
+
+Command-shadowing aliases make agents guess what `ls` actually does.
+Custom keymaps force agents to discover non-standard bindings.
+Shell traps and hidden hooks consume tokens explaining state that
+upstream defaults would have made obvious.
+
+This repo keeps the environment predictable and token-efficient for agents:
+
+- Default CLI behavior instead of surprising aliases
+- Stock tmux prefix and keymap
+- No shell, terminal, or editor shortcut remaps
+- Standard file locations and a predictable bootstrap/apply flow
+- Proven agent-helpful tools like RTK installed by default
+
+For humans, nothing is sacrificed:
+
+- A comfortable, beautiful TUI-first experience
+- Optional visual polish instead of mandatory theme stacks
+- One-command bootstrap plus easy re-apply and update flows
+- Local overrides and secrets kept out of the tracked repo
+
+---
+
+## 📦 Profiles
+
+| Profile | Extends | Modules | Environment |
+|---------|---------|---------|-------------|
+| `base` | — | core | Shared baseline |
+| `macos-desktop` | base | + tmux, nvim, visual | macOS workstation |
+| `macos-desktop-rich` | macos-desktop | + terminal, prompt | Full visual polish |
+| `linux-desktop` | base | + tmux, nvim, visual | Linux workstation |
+| `linux-desktop-rich` | linux-desktop | + terminal, prompt | Full visual polish |
+| `ssh-server` | base | + ssh-server, tmux | Remote / no-sudo |
+
+Profiles are auto-detected on install based on OS and environment. Override
+with `dotfiles apply --profile <name>`. Each profile inherits from its
+parent and adds modules incrementally, so `macos-desktop-rich` includes
+everything in `macos-desktop` plus terminal emulator presets (WezTerm,
+Alacritty) and the Powerlevel10k prompt layer. The `ssh-server` profile
+skips desktop modules entirely and focuses on a lightweight tmux + core
+setup suitable for remote machines without sudo.
+
+---
+
+## 🛠️ Neovim, Shell & Tools
+
+### Neovim
+
+37 lazy-loaded plugins with zero custom keybindings, using stock Neovim
+0.10+ keys. All plugins are managed by lazy.nvim with automatic treesitter
+parser installation for 21 languages.
+
+| Category | Highlights |
+|----------|-----------|
+| Colorscheme | kanagawa (dragon theme) |
+| Git | gitsigns, diffview, git-messenger |
+| LSP | lspconfig, mason, mason-lspconfig, nvim-cmp, lsp_signature |
+| UI | neo-tree, telescope, lualine (+ navic breadcrumbs), image.nvim |
+| Treesitter | nvim-treesitter with 21 auto-installed language parsers |
+| Editor | indent-blankline, nvim-colorizer, todo-comments, which-key |
+| Notifications | nvim-notify, noice, dressing, fidget |
+| Diagnostics | trouble |
+| Markdown | render-markdown |
+| AI | claudecode.nvim |
+
+Standard keybindings are all Neovim 0.10+ built-ins: `gd` (go to
+definition), `gr` (references), `K` (hover), `[d`/`]d` (diagnostics),
+`<C-n>`/`<C-p>` (completion navigation), `<C-y>` (accept), `<C-e>`
+(dismiss).
+
+Telescope commands: `:Telescope find_files`, `:Telescope live_grep`,
+`:Telescope buffers`. File explorer: `:Neotree toggle left`. Diagnostics:
+`:Trouble diagnostics`. Diff: `:DiffviewOpen`, `:DiffviewFileHistory`.
+
+See [docs/visual.md](docs/visual.md) for the full plugin list and
+keybinding reference.
+
+### Shell & Prompt
+
+Powerlevel10k with instant prompt, transient mode, and cloud segments for
+AWS, GCloud, and Azure. The prompt shows os_icon, directory, and git status
+on the left; execution time, background jobs, virtualenv, pyenv, node
+version, kubecontext, and clock on the right.
+
+FZF keybindings are enabled in rich profiles:
+
+- **Ctrl-T** -- file search with bat preview (falls back to cat)
+- **Ctrl-R** -- history search
+- **Alt-C** -- directory cd with eza tree preview (falls back to tree/ls)
+
+fast-syntax-highlighting provides an upgrade path over standard
+zsh-syntax-highlighting. When installed, it is detected and activated
+automatically.
+
+Shell startup is split into an explicit `zsh/` tree (`zshenv`, `zprofile`,
+`zshrc`, `zsh.d/`) that keeps the layout visible in the repo while thin
+wrappers in `HOME` delegate into `~/.dotfiles/zsh/`.
+
+Toolchain auto-discovery covers Volta, NVM, FNM, pyenv, Conda, asdf,
+nodenv, and mise paths so managed shell startup finds your tools without
+manual PATH configuration. If only `python3`/`pip3` exist, interactive
+shells expose `python`/`pip` aliases automatically.
+
+### Agent Tools
+
+| Tool | Description | Install |
+|------|-------------|---------|
+| rtk | AI-powered context for agents | `dotfiles tools install rtk` |
+| nvim-plugins | Bootstrap lazy.nvim + treesitter | `dotfiles tools install nvim-plugins` |
+| googleworkspace-cli | Google Workspace from terminal | `dotfiles tools install googleworkspace-cli` |
+| agent-browser | Headless browser for agents | `dotfiles tools install agent-browser` |
+| slack-cli | Slack from terminal | `dotfiles tools install slack-cli` |
+| powerlevel10k | Rich zsh prompt theme | `dotfiles tools install powerlevel10k` |
+| fast-syntax-highlighting | Enhanced zsh syntax coloring | `dotfiles tools install fast-syntax-highlighting` |
+| fzf-git | Git-aware FZF pickers | `dotfiles tools install fzf-git` |
+| zsh-plugins | Autosuggestions + completions | `dotfiles tools install zsh-plugins` |
+| tmux-resurrect | Session persistence | `dotfiles tools install tmux-resurrect` |
+
+List all tools with `dotfiles tools list`. Preview what an install does
+before running it with `dotfiles tools plan <name>`. Skip default tool
+installation during bootstrap with `dotfiles install --skip-tools`.
+
+### Package Tiers
+
+| Tier | Contents | Install |
+|------|----------|---------|
+| `default` | git, neovim, zsh, tmux | `dotfiles packages --set default` |
+| `agents` | ripgrep, fd, jq, fzf, git-delta | `dotfiles packages --set agents` |
+| `visual` | eza, bat, tree | `dotfiles packages --set visual` |
+
+Preview what a tier installs with `dotfiles packages --set <tier> --print-plan`.
+Install all tiers at once with `dotfiles packages --all`.
+
+---
+
+## 🔄 Update & Maintain
 
 ```sh
-dotfiles apply --profile linux-desktop
+dotfiles update          # sync to origin/main, re-apply, re-check tools
+dotfiles update --fast   # sync + re-apply without tool checks
+dotfiles apply           # re-apply current profile
 ```
 
-## Replacement behavior
+Local checkout changes are auto-stashed during update and preserved in
+`git stash` for manual review. Auto-stashed changes can be inspected with
+`git stash list` and restored with `git stash pop`. For branch or remote
+overrides, or to disable auto-stashing, see `dotfiles update --help`.
 
-If an older dotfiles checkout or managed config already exists, the installer should:
-1. detect the existing state
-2. ask once before replacing it
-3. create a timestamped backup
-4. replace the old checkout with `~/.dotfiles`
-5. re-apply managed symlinks from the manifest/profile engine
+Host-specific data stays outside the repo in local overlay files. See
+[docs/local-overrides.md](docs/local-overrides.md) for local customization
+patterns including git identity, machine-local shell hooks, SSH host
+overrides, and secret management.
 
-The goal is clean replacement, not in-place mutation of unknown legacy layouts.
+Architecture and contribution guidelines are documented in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-If an older `~/.zshenv`, `~/.zprofile`, or `~/.zshrc` contained machine-local PATH/tool initialization (for example Homebrew, Volta, or NVM), install/apply now backs the file up and auto-migrates that legacy zsh snippet into the matching unmanaged local overlay under `~/.config/dotfiles/`. This also covers legacy symlink-based layouts such as older `~/.dotfiles/zsh/*` installs by recovering the real file contents from the checkout backup when the backed-up shell target itself is only a broken symlink. Review those generated `local.zsh*` files after the first install/update and trim anything you no longer need.
+---
 
-Shell startup is now split into an explicit top-level `zsh/` tree inspired by `wookayin/dotfiles`:
+## 🙏 Acknowledgments
 
-- `zsh/zshenv`
-- `zsh/zprofile`
-- `zsh/zshrc`
-- `zsh/zsh.d/`
+A sincere shoutout to [wookayin/dotfiles](https://github.com/wookayin/dotfiles),
+the long-time inspiration behind much of this repo's structure, shell
+startup design, and visual philosophy. That style of thoughtful, deeply
+polished, personal dotfiles remains something to admire and aspire to.
 
-The managed home targets `~/.zshenv`, `~/.zprofile`, and `~/.zshrc` remain under `modules/core/home/` for apply/install compatibility, but they are now thin wrappers that delegate straight into `~/.dotfiles/zsh/*`. That keeps the shell layout visible in the repo while preserving the current module/profile system.
+---
 
-The managed shell startup now also performs baseline toolchain discovery inspired by older `wookayin/dotfiles` layouts:
+## 📄 License
 
-- Node managers / shims: `~/.volta/bin`, `~/.nvm/current/bin`, `~/.nvm/versions/node/*/bin`, common `fnm` current/default/version bins, `~/.asdf/{bin,shims}`, `~/.nodenv/{bin,shims}`, `~/.local/share/mise/shims`, `~/.yarn/bin`
-- Python managers / shims: `~/.pyenv/{bin,shims}` plus common Miniforge/Miniconda `condabin` locations
-- Interactive compatibility: if only `python3`/`pip3` exist, interactive shells expose `python`/`pip` aliases automatically
-
-Managed startup now discovers common `nvm`/`fnm` install bins directly, and unmanaged local overlays are sourced in relaxed mode so legacy plugin-manager errors do not abort the core shell startup. If you still want manager-specific shell functions or prompts, those can live in the unmanaged local overlay files.
-
-## Package tiers
-
-Package bootstrap is designed around a small default tier plus opt-in extras:
-- **default/base**: shell, git, tmux, and other essentials needed for the core experience
-- **desktop extras**: convenience packages that make sense on desktop-class machines
-- **agent/helpful tools**: opt-in CLI tools that improve search, editing, and automation workflows
-- **visual extras**: optional polish that should never be required for a working baseline
-
-Prefer native platform package managers first, and keep unsupported cases explicit instead of guessing.
-
-Inspect or plan package installation with:
-
-```sh
-~/.dotfiles/bin/dotfiles packages --list
-~/.dotfiles/bin/dotfiles packages --set default --print-plan
-~/.dotfiles/bin/dotfiles packages --all --print-plan
-```
-
-## Default agent tools
-
-The first default external agent helper is [RTK-AI](https://www.rtk-ai.app/). It is included because the primary goal of this repo is an agent-friendly CLI, and RTK is the kind of tool that can improve how agents operate without forcing weird aliases or non-standard shell semantics.
-
-That also means the tool layer stays swappable: if a better tool shows up later, this repo should be able to switch defaults without rewriting the whole shell philosophy.
-
-You can inspect or override the tool flow with:
-
-```sh
-~/.dotfiles/bin/dotfiles tools list
-~/.dotfiles/bin/dotfiles tools plan rtk
-~/.dotfiles/bin/dotfiles tools install rtk
-~/.dotfiles/bin/dotfiles install --skip-tools
-```
-
-That means RTK can be part of the default agent-first setup today, and later be swapped for a better tool without turning the core dotfiles into a weird non-standard environment.
-
-Interactive workflow extras that change shortcuts or editor/shell behavior stay opt-in. Examples:
-
-```sh
-~/.dotfiles/bin/dotfiles tools install zsh-plugins
-~/.dotfiles/bin/dotfiles tools install tmux-resurrect
-```
-
-If you enable those extras, wire them up from local override files such as `~/.config/dotfiles/local.interactive.sh`, `~/.config/dotfiles/local.zsh.zsh`, or `~/.config/tmux/local.conf` so the tracked baseline stays standard-first.
-
-## Local overlays and secrets
-
-Keep host-specific data outside the repo. Examples include:
-- personal git identity
-- machine-local shell hooks
-- SSH host overrides
-- tokens, keys, and any secret material
-
-The expected pattern is: tracked defaults in this repo, local overrides in unmanaged `*.local`-style files or machine-local config paths that the core modules can include without committing secrets.
-
-## Testing
-
-Do not test against live `~/.dotfiles` during development.
-
-Use isolated temp-`HOME` sandboxes for:
-- fresh install smoke tests
-- replacement/back-up flow tests
-- profile application tests
-- package bootstrap checks
-
-The test suite under `tests/` should exercise a local repo path/URL and verify that no live home directory state is touched. If a test or QA pass cannot prove that it stays inside a temp `HOME`, it is not safe enough.
-
-A stricter QA suite lives in `tests/install_qa.sh` and `tests/test_install_qa.py`. It stress-tests bootstrap, replace-existing backups, package planning, shell startup, and tmux defaults in fully isolated sandboxes.
-
-## Visual scope
-
-The base config stays standard-first, but the desktop layer is now richer:
-- `tmux`: safe terminal capability defaults + stock-keymap tmux baseline with color-gradient CPU/RAM status
-- `nvim`: ~28-plugin Neovim UI layer for desktop profiles (treesitter, LSP, completion, notifications) without default key remaps
-- `visual`: tmux theme and monitored status presentation
-- `terminal` + `prompt`: richer opt-in polish through the `*-desktop-rich` profiles — Powerlevel10k prompt, FZF shell bindings, fast-syntax-highlighting, colorized CLI aliases (eza, bat) — without keyboard-semantic remaps
-
-See [`docs/visual.md`](docs/visual.md) for the layering model, plugin list, and activation guidance.
-
-## Publishing
-
-See [`docs/publish.md`](docs/publish.md) for the GitHub publish checklist and push steps for `alohays/dotfiles`.
-
-## Quick verification commands
-
-After the first real commit, these are useful sanity checks:
-
-```sh
-~/.dotfiles/bin/dotfiles help
-python3 ~/.dotfiles/scripts/dotfiles.py profiles --repo-root ~/.dotfiles
-python3 -m unittest tests.test_dotfiles_apply tests.test_visual_modules tests.test_install_smoke tests.test_install_qa
-~/.dotfiles/bin/dotfiles tools plan rtk
-```
+[MIT](LICENSE)
