@@ -87,6 +87,7 @@ Update options:
   --branch <name>            Git branch to sync from (default: \$DOTFILES_BRANCH or main)
   --fast                     Skip default agent-tool installation after syncing
   --no-stash                 Fail instead of auto-stashing local checkout changes
+  --yolo                     Full install: rich profile + all packages + all tools + auto-yes
   --help, -h                 Show this help
 
 Auto-stashed checkout changes stay in git stash for manual review/restore.
@@ -189,6 +190,14 @@ run_install() {
         DOTFILES_SKIP_TOOLS=1
         shift
         ;;
+      --yolo)
+        # Keep in sync with --yolo in global parser and run_update
+        DOTFILES_YES=1
+        DOTFILES_PREFER_RICH=1
+        DOTFILES_ALL_PACKAGES=1
+        DOTFILES_ALL_TOOLS=1
+        shift
+        ;;
       --)
         shift
         break
@@ -199,7 +208,7 @@ run_install() {
     esac
   done
 
-  export DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS
+  export DOTFILES_SKIP_APPLY DOTFILES_SKIP_TOOLS DOTFILES_YES DOTFILES_PREFER_RICH DOTFILES_ALL_PACKAGES DOTFILES_ALL_TOOLS
 
   # Show banner on install (skip if already shown by run_update).
   if [ "${_dotfiles_banner_shown:-0}" != "1" ]; then
@@ -381,6 +390,14 @@ run_update() {
         update_autostash=0
         shift
         ;;
+      --yolo)
+        # Keep in sync with --yolo in global parser and run_install
+        DOTFILES_YES=1
+        DOTFILES_PREFER_RICH=1
+        DOTFILES_ALL_PACKAGES=1
+        DOTFILES_ALL_TOOLS=1
+        shift
+        ;;
       --help|-h)
         update_usage
         return 0
@@ -394,6 +411,8 @@ run_update() {
         ;;
     esac
   done
+
+  export DOTFILES_YES DOTFILES_PREFER_RICH DOTFILES_ALL_PACKAGES DOTFILES_ALL_TOOLS
 
   # Validate branch name contains only safe characters.
   case "$update_branch" in
