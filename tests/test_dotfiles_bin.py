@@ -106,6 +106,64 @@ class YoloFlagTests(unittest.TestCase):
         self.assertIn("agent tools (--skip-tools)", completed.stdout)
         self.assertNotIn("ALL agent tools", completed.stdout)
 
+    def test_yolo_after_install_subcommand(self) -> None:
+        completed = self.run_bin("install", "--yolo", "--dry-run")
+
+        self.assertEqual(
+            completed.returncode,
+            0,
+            msg=f"install --yolo --dry-run failed\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
+        )
+        self.assertIn("ALL agent tools", completed.stdout)
+        self.assertIn("ALL packages", completed.stdout)
+
+    def test_yolo_after_update_subcommand(self) -> None:
+        completed = self.run_bin(
+            "update", "--yolo", "--dry-run",
+            env={"DOTFILES_CHECKOUT_ALREADY_UPDATED": "1"},
+        )
+
+        self.assertEqual(
+            completed.returncode,
+            0,
+            msg=f"update --yolo --dry-run failed\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
+        )
+        self.assertIn("ALL agent tools", completed.stdout)
+        self.assertIn("ALL packages", completed.stdout)
+
+    def test_yolo_skip_tools_after_install(self) -> None:
+        completed = self.run_bin("install", "--yolo", "--skip-tools", "--dry-run")
+
+        self.assertEqual(
+            completed.returncode,
+            0,
+            msg=(
+                "install --yolo --skip-tools --dry-run failed\n"
+                f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+            ),
+        )
+        self.assertIn("agent tools (--skip-tools)", completed.stdout)
+        self.assertNotIn("ALL agent tools", completed.stdout)
+        self.assertIn("ALL packages", completed.stdout)
+
+    def test_yolo_fast_after_update(self) -> None:
+        completed = self.run_bin(
+            "update", "--fast", "--yolo", "--dry-run",
+            env={"DOTFILES_CHECKOUT_ALREADY_UPDATED": "1"},
+        )
+
+        self.assertEqual(
+            completed.returncode,
+            0,
+            msg=(
+                "update --fast --yolo --dry-run failed\n"
+                f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+            ),
+        )
+        self.assertIn("agent tools (--skip-tools)", completed.stdout)
+        self.assertNotIn("ALL agent tools", completed.stdout)
+        self.assertIn("ALL packages", completed.stdout)
+
     def test_yolo_skip_apply(self) -> None:
         completed = self.run_bin("--yolo", "--skip-apply", "--dry-run", "install")
 
