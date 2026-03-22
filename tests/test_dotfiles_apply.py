@@ -647,6 +647,47 @@ class DotfilesApplyTests(unittest.TestCase):
         self.assertTrue((home / ".config/nvim/init.lua").is_symlink())
         self.assertTrue((home / ".config/tmux/theme.conf").is_symlink())
 
+    def test_apply_skips_migration_when_legacy_file_is_pure_framework(self) -> None:
+        """When the old .zshenv was the repo's canonical zsh/zshenv, the
+        sanitised content should be empty and no overlay file should be created."""
+        repo_root = self.make_temp_repo()
+        home = self.make_temp_dir()
+        self.write_module_file(repo_root, "core", ".zshenv", "# managed wrapper\n")
+        canonical_content = (
+            "# Canonical repo-owned zshenv.\n"
+            "# Managed home wrappers delegate here so the repo has a visible zsh/ tree.\n"
+            "\n"
+            '[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"\n'
+            ': "${DOTFILES_HOME:=$HOME/.dotfiles}"\n'
+            "\n"
+            "# Keep zshenv minimal; it is sourced for every zsh invocation.\n"
+            'dotfiles_source_optional "$HOME/.config/dotfiles/env.sh"\n'
+            'dotfiles_source_optional "$DOTFILES_HOME/zsh/zsh.d/envs.zsh"\n'
+            'dotfiles_source_optional_relaxed "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zshenv.sh"\n'
+        )
+        self.write_file(home / ".zshenv", canonical_content)
+
+        result = self.run_cli(
+            "apply",
+            "--repo-root",
+            str(repo_root),
+            "--home",
+            str(home),
+            "--profile",
+            "base",
+        )
+
+        self.assertTrue(result["ok"])
+        overlay = home / ".config/dotfiles/local.zshenv.sh"
+        self.assertFalse(
+            overlay.exists(),
+            "should not create overlay when legacy content is pure framework",
+        )
+        self.assertTrue(
+            any("framework-owned" in note for note in result["notes"]),
+            f"expected a 'framework-owned' note, got {result['notes']}",
+        )
+
 
 class SanitizeMigratedZshContentTests(unittest.TestCase):
     @classmethod
@@ -830,6 +871,100 @@ class SanitizeMigratedZshContentTests(unittest.TestCase):
         self.assertIn("antidote bundle", result)
         self.assertIn("fast-theme", result)
         self.assertIn("export KEEP_ME=1", result)
+
+    # -- Framework infrastructure stripping tests --
+
+    def test_strips_canonical_zshenv_framework_lines(self) -> None:
+        content = (
+            "# Canonical repo-owned zshenv.\n"
+            "# Managed home wrappers delegate here so the repo has a visible zsh/ tree.\n"
+            "\n"
+            '[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"\n'
+            ': "${DOTFILES_HOME:=$HOME/.dotfiles}"\n'
+            "\n"
+            "# Keep zshenv minimal; it is sourced for every zsh invocation.\n"
+            'dotfiles_source_optional "$HOME/.config/dotfiles/env.sh"\n'
+            'dotfiles_source_optional "$DOTFILES_HOME/zsh/zsh.d/envs.zsh"\n'
+            'dotfiles_source_optional_relaxed "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zshenv.sh"\n'
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("dotfiles_source_optional", result)
+        self.assertNotIn("DOTFILES_HOME", result)
+        self.assertNotIn("lib.sh", result)
+        for line in result.splitlines():
+            stripped = line.strip()
+            self.assertTrue(
+                stripped == "" or stripped.startswith("#"),
+                f"expected only blanks/comments, got: {line!r}",
+            )
+
+    def test_strips_canonical_zshrc_framework_lines(self) -> None:
+        content = (
+            "# Canonical repo-owned zshrc.\n"
+            "\n"
+            '[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"\n'
+            ': "${DOTFILES_HOME:=$HOME/.dotfiles}"\n'
+            "\n"
+            'dotfiles_source_optional "$HOME/.config/dotfiles/env.sh"\n'
+            "[[ -o interactive ]] || return 0\n"
+            "\n"
+            'dotfiles_source_optional "$HOME/.config/dotfiles/interactive.sh"\n'
+            'dotfiles_source_optional "$HOME/.config/dotfiles/zsh.sh"\n'
+            'dotfiles_source_dir "$DOTFILES_HOME/zsh/zsh.d"\n'
+            'dotfiles_source_optional_relaxed "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zsh.zsh"\n'
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("dotfiles_source_", result)
+        self.assertNotIn("DOTFILES_HOME", result)
+        self.assertNotIn("[[ -o interactive ]]", result)
+
+    def test_strips_canonical_zprofile_framework_lines(self) -> None:
+        content = (
+            "# Canonical repo-owned zprofile.\n"
+            "\n"
+            '[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"\n'
+            '[ -r "$HOME/.profile" ] && . "$HOME/.profile"\n'
+            ': "${DOTFILES_HOME:=$HOME/.dotfiles}"\n'
+            "\n"
+            'dotfiles_source_optional "$DOTFILES_HOME/zsh/zsh.d/login.zsh"\n'
+            'dotfiles_source_optional_relaxed "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zprofile.sh"\n'
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("dotfiles_source_", result)
+        self.assertNotIn(".profile", result)
+        self.assertNotIn("DOTFILES_HOME", result)
+
+    def test_preserves_user_content_mixed_with_framework_lines(self) -> None:
+        content = (
+            '[ -r "$HOME/.config/dotfiles/lib.sh" ] && . "$HOME/.config/dotfiles/lib.sh"\n'
+            ': "${DOTFILES_HOME:=$HOME/.dotfiles}"\n'
+            'dotfiles_source_optional "$HOME/.config/dotfiles/env.sh"\n'
+            'export PATH="$HOME/.cargo/bin:$PATH"\n'
+            'export GOPATH="$HOME/go"\n'
+            'dotfiles_source_optional_relaxed "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/local.zshenv.sh"\n'
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("dotfiles_source_", result)
+        self.assertNotIn("lib.sh", result)
+        self.assertIn('export PATH="$HOME/.cargo/bin:$PATH"', result)
+        self.assertIn('export GOPATH="$HOME/go"', result)
+
+    def test_strips_managed_wrapper_content(self) -> None:
+        content = (
+            "# Managed wrapper; canonical repo-owned zsh startup lives under $DOTFILES_HOME/zsh/zshenv.\n"
+            "_dotfiles_wrapper_path=${(%):-%x}\n"
+            '_dotfiles_wrapper_repo=$(cd "${${_dotfiles_wrapper_path}:A:h}/../../.." 2>/dev/null && pwd -P)\n'
+            'if [ -n "$_dotfiles_wrapper_repo" ] && [ -r "$_dotfiles_wrapper_repo/zsh/zshenv" ]; then\n'
+            "  DOTFILES_HOME=$_dotfiles_wrapper_repo\n"
+            "else\n"
+            '  : "${DOTFILES_HOME:=$HOME/.dotfiles}"\n'
+            "fi\n"
+            '[ -r "$DOTFILES_HOME/zsh/zshenv" ] && . "$DOTFILES_HOME/zsh/zshenv"\n'
+            "unset _dotfiles_wrapper_path _dotfiles_wrapper_repo\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("_dotfiles_wrapper", result)
+        self.assertNotIn("DOTFILES_HOME", result)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,8 @@
 
 This module handles the one-time migration of legacy ~/.zshenv, ~/.zprofile,
 and ~/.zshrc files into unmanaged local overlay files. It strips known-obsolete
-patterns (antidote, prezto, zinit, GLOBAL_RCS) and recovers content from backup
+patterns (antidote, prezto, zinit, GLOBAL_RCS) and framework-owned sourcing
+infrastructure, and recovers content from backup
 checkouts when the original file was a symlink.
 
 After the first successful apply, these functions are effectively no-ops for
@@ -121,6 +122,22 @@ _MIGRATE_LINE_STRIP_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc"),
     re.compile(r"^\s*source\s+/etc/zshrc"),
     re.compile(r"^\s*source\s+/etc/zsh/zshrc"),
+    # Framework infrastructure lines — stripping these prevents the migrated
+    # overlay from re-sourcing framework files or (critically) itself.
+    re.compile(r"^\s*dotfiles_source_optional\s"),
+    re.compile(r"^\s*dotfiles_source_optional_relaxed\s"),
+    re.compile(r"^\s*dotfiles_source_dir\s"),
+    re.compile(r"""^\s*\[\s+-r\s+["']?\$.*dotfiles/lib\.sh"""),
+    re.compile(r"""^\s*:\s+["']\$\{DOTFILES_HOME:="""),
+    re.compile(r"^\s*\[\[\s+-o\s+interactive\s*\]\]\s*\|\|\s*return"),
+    re.compile(r"""^\s*\[\s+-r\s+["']\$HOME/\.profile["']\s*\]\s*&&\s*\."""),
+    re.compile(r"^#\s*Canonical repo-owned zsh"),
+    re.compile(r"^#\s*Managed home wrappers? delegate"),
+    re.compile(r"^#\s*Keep zshenv minimal"),
+    re.compile(r"^#\s*Managed wrapper.*canonical repo-owned"),
+    re.compile(r"^\s*_dotfiles_wrapper_"),
+    re.compile(r"^\s*unset\s+_dotfiles_wrapper_"),
+    re.compile(r"""^\s*\[\s+-r\s+["']\$DOTFILES_HOME/zsh/zsh"""),
 ]
 
 _MIGRATE_BLOCK_START_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -133,11 +150,18 @@ _MIGRATE_BLOCK_START_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\s*function\s+_antidote_"), "}"),
     (re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zshrc\b.*;\s*then\s*$"), "fi"),
     (re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc\b.*;\s*then\s*$"), "fi"),
+    # Managed wrapper DOTFILES_HOME resolution block.
+    (re.compile(r"""^\s*if\s+\[\s+-n\s+["']\$_dotfiles_wrapper_repo"""), "fi"),
 ]
 
 
 def sanitize_migrated_zsh_content(content: str) -> str:
-    """Strip known-obsolete patterns (antidote, prezto, GLOBAL_RCS) from migrated zsh content."""
+    """Strip obsolete and framework-owned patterns from migrated zsh content.
+
+    Removes known-obsolete plugin managers (antidote, prezto, zinit, GLOBAL_RCS)
+    and the dotfiles framework's own sourcing infrastructure so that migrated
+    overlay files do not re-source framework files or themselves.
+    """
     lines = content.splitlines(keepends=True)
     result: list[str] = []
     i = 0
@@ -198,6 +222,15 @@ def sanitize_migrated_zsh_content(content: str) -> str:
     return "".join(cleaned)
 
 
+def _has_meaningful_content(content: str) -> bool:
+    """Return True if *content* has at least one non-comment, non-blank line."""
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            return True
+    return False
+
+
 def auto_migrate_zsh_backup(
     home: Path,
     backups_root: Path,
@@ -230,10 +263,17 @@ def auto_migrate_zsh_backup(
 
     content = sanitize_migrated_zsh_content(content)
 
+    if not _has_meaningful_content(content):
+        notes.append(
+            f"legacy {target_rel} contained only framework-owned lines; "
+            f"skipped creating {destination_rel}"
+        )
+        return
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     header = (
         f"# Auto-migrated from backed-up {target_rel} on {_utc_now()}.\n"
-        "# Known-obsolete patterns (antidote, prezto, GLOBAL_RCS) were stripped.\n"
+        "# Obsolete plugin-manager and dotfiles-framework lines were stripped.\n"
         "# Review and trim this file -- the framework handles PATH, plugins, and completion.\n\n"
     )
     if not content.endswith("\n"):
