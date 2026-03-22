@@ -2,7 +2,8 @@
 
 This module handles the one-time migration of legacy ~/.zshenv, ~/.zprofile,
 and ~/.zshrc files into unmanaged local overlay files. It strips known-obsolete
-patterns (antidote, prezto, zinit, GLOBAL_RCS) and recovers content from backup
+patterns (antidote, prezto, zinit, GLOBAL_RCS) and framework-owned sourcing
+infrastructure, and recovers content from backup
 checkouts when the original file was a symlink.
 
 After the first successful apply, these functions are effectively no-ops for
@@ -272,7 +273,7 @@ def auto_migrate_zsh_backup(
     destination.parent.mkdir(parents=True, exist_ok=True)
     header = (
         f"# Auto-migrated from backed-up {target_rel} on {_utc_now()}.\n"
-        "# Known-obsolete patterns (antidote, prezto, GLOBAL_RCS) were stripped.\n"
+        "# Obsolete plugin-manager and dotfiles-framework lines were stripped.\n"
         "# Review and trim this file -- the framework handles PATH, plugins, and completion.\n\n"
     )
     if not content.endswith("\n"):
