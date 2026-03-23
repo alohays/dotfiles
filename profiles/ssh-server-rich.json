@@ -1,0 +1,6 @@
+{
+  "name": "ssh-server-rich",
+  "description": "Full-featured SSH server: ssh hardening + nvim + visual tmux theme + terminal + prompt polish.",
+  "extends": ["ssh-server"],
+  "modules": ["nvim", "visual", "terminal", "prompt"]
+}
