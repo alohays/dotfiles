@@ -3,9 +3,7 @@
 
 [ -n "${ZSH_VERSION:-}" ] || return 0
 
-case "${TERM:-}" in
-    ''|dumb) return 0 ;;
-esac
+dotfiles_term_capable || return 0
 
 _dotfiles_rich_plugin_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 

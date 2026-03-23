@@ -3,9 +3,7 @@
 
 [ -n "${ZSH_VERSION:-}" ] || return 0
 
-case "${TERM:-}" in
-    ''|dumb) return 0 ;;
-esac
+dotfiles_term_capable || return 0
 
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
 zstyle ':completion:*' menu select
