@@ -176,6 +176,12 @@ fi
 DOTFILES_ENV_SH_LOADED=1
 export DOTFILES_ENV_SH_LOADED
 
+# When the advertised terminal lacks a local terminfo entry (e.g. xterm-ghostty
+# over SSH), fall back so that tmux and other ncurses tools can start.
+if [ -n "${TERM:-}" ] && [ "$TERM" != "dumb" ] && ! infocmp "$TERM" >/dev/null 2>&1; then
+    export TERM=xterm-256color
+fi
+
 if [ -z "${EDITOR:-}" ]; then
     if command -v nvim >/dev/null 2>&1; then
         EDITOR=nvim

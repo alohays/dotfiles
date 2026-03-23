@@ -1,0 +1,2 @@
+# SSH: auto-install terminfo on remote hosts, fall back to xterm-256color if blocked.
+shell-integration-features = ssh-terminfo,ssh-env
