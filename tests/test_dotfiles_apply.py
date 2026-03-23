@@ -85,6 +85,7 @@ class DotfilesApplyTests(unittest.TestCase):
                 "linux-desktop",
                 "macos-desktop-rich",
                 "macos-desktop",
+                "ssh-server-rich",
                 "ssh-server",
             ],
         )
@@ -410,6 +411,12 @@ class DotfilesApplyTests(unittest.TestCase):
             ["core", "tmux", "nvim", "visual", "terminal", "prompt"],
         )
         self.assertEqual(ssh_server["modules"], ["core", "ssh-server", "tmux"])
+
+        ssh_server_rich = self.script.resolve_profile(REPO_ROOT, manifest, "ssh-server-rich")
+        self.assertEqual(
+            ssh_server_rich["modules"],
+            ["core", "ssh-server", "tmux", "nvim", "visual", "terminal", "prompt"],
+        )
 
     def test_apply_links_visual_theme_for_desktop_profile(self) -> None:
         repo_root = self.make_temp_repo()
