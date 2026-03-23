@@ -949,6 +949,81 @@ class SanitizeMigratedZshContentTests(unittest.TestCase):
         self.assertIn('export PATH="$HOME/.cargo/bin:$PATH"', result)
         self.assertIn('export GOPATH="$HOME/go"', result)
 
+    def test_strips_source_antidote_bundle_variable(self) -> None:
+        content = (
+            "# before\n"
+            'source "$ANTIDOTE_BUNDLE"\n'
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("ANTIDOTE_BUNDLE", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_strips_local_antidote_variables(self) -> None:
+        content = (
+            "local -a bundles=()\n"
+            'local _ANTIDOTE_SAVING=""\n'
+            "export KEEP=1\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("bundles", result)
+        self.assertNotIn("_ANTIDOTE_SAVING", result)
+        self.assertIn("export KEEP=1", result)
+
+    def test_strips_antidote_error_recovery_block(self) -> None:
+        content = (
+            "# before\n"
+            "if [ ! $? -eq 0 ] ; then\n"
+            '  echo "Sourcing failed"\n'
+            "  _antidote_compile_bundles\n"
+            '  source "$ANTIDOTE_BUNDLE"\n'
+            "fi\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("_antidote_compile_bundles", result)
+        self.assertNotIn("Sourcing failed", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_strips_fpath_antidote_workaround(self) -> None:
+        content = (
+            "# before\n"
+            "fpath_user=(${(@)fpath:#/(opt|usr)/*zsh*})\n"
+            "fpath_system=(${(@)fpath:|fpath_user})\n"
+            "fpath=($fpath_user $fpath_system)\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("fpath_user", result)
+        self.assertNotIn("fpath_system", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_strips_empty_prezto_if_block(self) -> None:
+        content = (
+            "# before\n"
+            'if [[ -s "${ZDOTDIR:-$HOME}/.zpreztorc" ]]; then\n'
+            "fi\n"
+            "# after\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("zpreztorc", result)
+        self.assertIn("# before", result)
+        self.assertIn("# after", result)
+
+    def test_strips_bare_antidote_function_calls(self) -> None:
+        content = (
+            "_antidote_compile_bundles\n"
+            "_antidote_reset\n"
+            "export KEEP=1\n"
+        )
+        result = self.sanitize(content)
+        self.assertNotIn("_antidote_compile", result)
+        self.assertNotIn("_antidote_reset", result)
+        self.assertIn("export KEEP=1", result)
+
     def test_strips_managed_wrapper_content(self) -> None:
         content = (
             "# Managed wrapper; canonical repo-owned zsh startup lives under $DOTFILES_HOME/zsh/zshenv.\n"
