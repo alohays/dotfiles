@@ -4,9 +4,7 @@
 
 command -v fzf >/dev/null 2>&1 || return 0
 
-case "${TERM:-}" in
-    ''|dumb) return 0 ;;
-esac
+dotfiles_term_capable || return 0
 
 [ -t 0 ] || [ -t 1 ] || return 0
 

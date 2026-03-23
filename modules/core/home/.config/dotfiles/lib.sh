@@ -130,3 +130,10 @@ dotfiles_ensure_dir() {
     [ -n "$dir" ] || return 0
     [ -d "$dir" ] || mkdir -p "$dir"
 }
+
+dotfiles_term_capable() {
+    case "${TERM:-}" in
+        ''|dumb) return 1 ;;
+    esac
+    tput cols >/dev/null 2>&1
+}
