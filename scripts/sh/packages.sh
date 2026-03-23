@@ -169,13 +169,31 @@ dotfiles_install_packages() {
       ;;
     apt)
       if [ "$(id -u)" -eq 0 ]; then
-        dotfiles_run apt-get update
-        dotfiles_run apt-get install -y "$@"
+        _apt_cmd="apt-get"
       elif dotfiles_has_cmd sudo; then
-        dotfiles_run sudo apt-get update
-        dotfiles_run sudo apt-get install -y "$@"
+        _apt_cmd="sudo apt-get"
       else
         dotfiles_die "apt package installation requires root or sudo; use --print-plan on no-sudo hosts"
+      fi
+      dotfiles_run $_apt_cmd update
+
+      # Pre-filter: skip packages not available in configured repos.
+      # apt-get aborts entirely if any package is missing from repos;
+      # --ignore-missing only handles download failures, not missing packages.
+      _available="" _skipped=""
+      for _pkg in "$@"; do
+        if apt-cache show "$_pkg" >/dev/null 2>&1; then
+          _available="$_available $_pkg"
+        else
+          _skipped="$_skipped $_pkg"
+        fi
+      done
+      if [ -n "$_skipped" ]; then
+        dotfiles_warn "packages not in repos (skipped):$_skipped"
+      fi
+      if [ -n "$_available" ]; then
+        # shellcheck disable=SC2086
+        dotfiles_run $_apt_cmd install -y $_available
       fi
       ;;
     *)

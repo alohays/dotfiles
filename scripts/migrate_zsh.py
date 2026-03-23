@@ -109,6 +109,7 @@ def zsh_backup_content_source(
 _MIGRATE_LINE_STRIP_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"^\s*unsetopt\s+GLOBAL_RCS"),
     re.compile(r"^\s*source\s+.*antidote.*\.zsh"),
+    re.compile(r"^\s*source\s+.*ANTIDOTE"),  # source "$ANTIDOTE_BUNDLE" (variable ref)
     re.compile(r"^\s*source\s+.*\.zpreztorc"),
     re.compile(r"^\s*source\s+.*zgen/init\.zsh"),
     re.compile(r"^\s*source\s+.*zinit"),
@@ -116,7 +117,13 @@ _MIGRATE_LINE_STRIP_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"^\s*(export\s+)?ANTIDOTE_BUNDLE\s*="),
     re.compile(r"""zstyle\s+['"]?:antidote:"""),
     re.compile(r"""zstyle\s+['"]?:prezto:"""),
-    re.compile(r"^\s*antidote\s+(bundle|load|update)"),
+    re.compile(r"^\s*antidote\s+(bundle|load|update|install|home|init|path|list)"),
+    re.compile(r"^\s*_antidote_\w+"),  # bare _antidote_ function calls
+    re.compile(r"^\s*(local|typeset)\s+.*ANTIDOTE"),  # local _ANTIDOTE_SAVING=""
+    re.compile(r"^\s*(local|typeset)\s+-a\s+bundles\s*="),  # antidote bundle array
+    re.compile(r"^\s*fpath_(user|system)\s*="),  # antidote fpath workaround
+    re.compile(r"^\s*fpath\s*=\s*\(\s*\$fpath_user"),  # antidote fpath reassembly
+    re.compile(r"^#\s*Source antidote\s*$"),  # section header
     re.compile(r"^\s*fast-theme\s+"),
     re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zshrc"),
     re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc"),
@@ -150,6 +157,10 @@ _MIGRATE_BLOCK_START_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\s*function\s+_antidote_"), "}"),
     (re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zshrc\b.*;\s*then\s*$"), "fi"),
     (re.compile(r"^\s*if\s+\[\s+-f\s+/etc/zsh/zshrc\b.*;\s*then\s*$"), "fi"),
+    # Empty prezto config block left after source line is stripped.
+    (re.compile(r"^\s*if\s+\[\[\s+-s\s+.*zpreztorc"), "fi"),
+    # Antidote source error-recovery block (if [ ! $? -eq 0 ]).
+    (re.compile(r"^\s*if\s+\[\s+!\s+\$\?\s+-eq\s+0"), "fi"),
     # Managed wrapper DOTFILES_HOME resolution block.
     (re.compile(r"""^\s*if\s+\[\s+-n\s+["']\$_dotfiles_wrapper_repo"""), "fi"),
 ]
